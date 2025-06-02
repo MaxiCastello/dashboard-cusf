@@ -1,4 +1,4 @@
-#  Dashboard de Tackles por Jugador
+##  Dashboard de Tackles por Jugador
 
 Este proyecto consiste en un tablero interactivo desarrollado con **Streamlit** y **Plotly**, que permite visualizar los tackles totales, errados y la precisión defensiva por jugador en un equipo de rugby (u otro deporte de contacto).
 
