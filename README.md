@@ -16,4 +16,4 @@ Este proyecto consiste en un tablero interactivo desarrollado con **Streamlit** 
 - Plotly para visualizaciones dinámicas y responsivas.
 - Pandas para la manipulación de datos.
 
-  Proyecto den desarrollo, continuaremos sumando estadisticas.
+  Proyecto en desarrollo, continuaremos sumando estadisticas.
