@@ -35,7 +35,6 @@ Cada archivo `.xlsx` debe contener una hoja llamada `Resumen` con las siguientes
 
 ## Próximas ideas
 
-- Visualización de tackles por zona del campo.
 - Evolución de cada jugador a lo largo del tiempo.
 - Comparativa entre jugadores o entre partidos.
 
