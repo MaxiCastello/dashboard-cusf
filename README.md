@@ -1,6 +1,6 @@
 ## Dashboard de Tackles por Jugador
 
-Este proyecto es un tablero interactivo desarrollado para el Club Universiario de Santa Fe con Streamlit y Plotly, que permite analizar el rendimiento defensivo de jugadores de rugby (u otros deportes de contacto). Visualiza de forma clara y dinámica la cantidad de tackles realizados, con su tipo positivo, negativo o neutral, los errados y su precisión defensiva. https://tablero-cusf.streamlit.app/
+Este proyecto es un tablero interactivo desarrollado para el Club Universiario de Santa Fe con Streamlit y Plotly, que permite analizar el rendimiento defensivo de jugadores de rugby. Visualiza de forma clara y dinámica la cantidad de tackles realizados, con su tipo positivo, negativo o neutral, los errados y su precisión defensiva. https://tablero-cusf.streamlit.app/
 
 ## Funcionalidades principales
 
