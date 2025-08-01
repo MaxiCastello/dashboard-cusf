@@ -9,7 +9,7 @@ Este proyecto es un tablero interactivo desarrollado para el Club Universiario d
 - Agrupamiento por nombre y número de camiseta.
 - Gráfico de barras apiladas ordenado y de fácil lectura.
 - Soporte para múltiples archivos .xlsx con datos por partido.
-- Preparado para futuras extensiones (mapas de calor, comparativas, evolución por temporada, etc.).
+- Preparado para futuras extensiones (comparativas, evolución por temporada, etc.).
 
 ## Tecnologías utilizadas
 
