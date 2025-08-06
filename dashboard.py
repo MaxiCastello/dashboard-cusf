@@ -708,7 +708,7 @@ try:
     # SALIDAS 22
     st.subheader("Estadísticas de Salidas 22")
 
-    salidas_22 = pd.read_excel(archivo_estadistica, sheet_name="Salidas 22")
+    salidas_22 = pd.read_excel(archivo_estadistica, sheet_name="Salidas de 22")
     salidas_22.columns = salidas_22.columns.str.strip().str.lower()
 
     if {
