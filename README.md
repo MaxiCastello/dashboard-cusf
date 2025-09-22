@@ -1,43 +1,77 @@
-## Dashboard de Tackles por Jugador
+# Dashboard del Club Universitario de Santa Fe – Rugby - 2025  
 
-Este proyecto es un tablero interactivo desarrollado para el Club Universiario de Santa Fe con Streamlit y Plotly, que permite analizar el rendimiento defensivo de jugadores de rugby. Visualiza de forma clara y dinámica la cantidad de tackles realizados, con su tipo positivo, negativo o neutral, los errados y su precisión defensiva. https://tablero-cusf.streamlit.app/
+[![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)](https://www.python.org/)  
+[![Streamlit](https://img.shields.io/badge/Streamlit-app-red?logo=streamlit)](https://streamlit.io/)  
+[![Plotly](https://img.shields.io/badge/Plotly-visualizations-3DDC84?logo=plotly)](https://plotly.com/)  
+[![Pandas](https://img.shields.io/badge/Pandas-data--analysis-purple?logo=pandas)](https://pandas.pydata.org/)  
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)  
 
-## Funcionalidades principales
+Este proyecto es un **tablero interactivo** desarrollado para el **Club Universitario de Santa Fe** con **Streamlit** y **Plotly**, que permite analizar de forma integral el rendimiento del equipo a lo largo de la temporada.  
 
-- Visualización por partido de tackles exitosos vs errados por jugador.
-- Etiquetas dinámicas con porcentaje de efectividad (ej. 6/7 (86%)).
-- Agrupamiento por nombre y número de camiseta.
-- Gráfico de barras apiladas ordenado y de fácil lectura.
-- Soporte para múltiples archivos .xlsx con datos por partido.
-- Preparado para futuras extensiones (comparativas, evolución por temporada, etc.).
-
-## Tecnologías utilizadas
-
-- Python 3.12
-- Plotly – Visualizaciones interactivas
-- Pandas – Procesamiento de datos
-- Streamlit – Tablero web interactivo
-
-## Estado del proyecto
-
-Proyecto en desarrollo activo.  
-Se irán agregando nuevas estadísticas y visualizaciones a medida que se carguen más partidos.
-
-## Estructura esperada de los datos
-
-Cada archivo `.xlsx` debe contener una hoja llamada `Resumen` con las siguientes columnas mínimas:
-
-- `jugador` (número de camiseta)
-- `nombre del jugador`
-- `tackles`
-- `errados`
-- `positivos`, `negativos`, `neutrales`
-
-## Próximas ideas
-
-- Evolución de cada jugador a lo largo del tiempo.
-- Comparativa entre jugadores o entre partidos.
+Acceso al tablero: [tablero-cusf.streamlit.app](https://tablero-cusf.streamlit.app/)  
 
 ---
 
-Cualquier sugerencia o colaboración es bienvenida.
+## Funcionalidades principales  
+
+- **Tablero general** con KPIs clave: puntos a favor, en contra, diferencia y XP por partido.  
+- **Visualización de puntos**:  
+  - Totales, composición (tries, conversiones, penales, drops).  
+  - Precisión en conversiones y penales.  
+- **Estadísticas de formaciones fijas**:  
+  - **Line**: totales, lanzamientos propios y rivales.  
+  - **Scrum**: totales, lanzamientos propios y rivales.  
+- **Penales**:  
+  - Totales por situación (line, scrum, ruck, juego, salidas).  
+  - Detalle por motivo en ruck, juego y scrum.  
+  - Conclusión con promedio de penales cometidos por partido.  
+- **Salidas**:  
+  - Totales, propias y rivales.  
+  - **Salidas de 22** desglosadas.  
+- **Efectividad en 22 rival**: comparación de chances vs concretadas.  
+- **Tackles**:  
+  - Totales por jugador, con % de efectividad y PJ jugados.  
+  - Gráficos por tipo de tackle (positivo, negativo, neutral, errado).  
+- **Generación de informe PDF** automático con KPIs, gráficos y conclusiones.  
+
+---
+
+## Tecnologías utilizadas  
+
+- **Python 3.12**  
+- **Streamlit** – Tablero web interactivo  
+- **Plotly** – Visualizaciones interactivas  
+- **Pandas** – Procesamiento de datos  
+- **ReportLab** – Exportación a PDF  
+
+---
+
+## Estructura esperada de los datos  
+
+- Archivos de partidos individuales (`Tackles_FechaX_Club.xlsx`):  
+  - Hoja **Resumen** con columnas:  
+    - `jugador` (número de camiseta)  
+    - `nombre del jugador`  
+    - `tackles`, `errados`  
+    - `positivos`, `negativos`, `neutrales`  
+
+- Archivo consolidado `Estadistica.xlsx`:  
+  - Hoja **Penales** (situaciones, motivos, propios/rival).  
+  - Hojas **Line**, **Scrum**, **Salidas**, **Salidas de 22**, **Efectividad 22**, **Puntos**.  
+  - Hoja **Info** - cantidad de partidos jugados.  
+
+---
+
+## Estado del proyecto  
+
+- Proyecto en **desarrollo activo**.  
+- Se irán agregando nuevas visualizaciones, mejoras en la interfaz y opciones de análisis comparativo.  
+
+---
+
+## Próximas ideas  
+
+- Evolución de cada métrica a lo largo de la temporada.  
+- Comparativas entre jugadores, rivales y partidos.  
+- Análisis de tendencias y promedios históricos.  
+- Exportación automática de reportes personalizados para entrenadores y staff.  
