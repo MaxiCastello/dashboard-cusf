@@ -57,12 +57,6 @@ computadora, la tablet y el celular.
 - **Supabase** – la base de datos compartida con Uni-Dat
 - **ReportLab** – el informe en PDF
 
-Para correrlo en una computadora:
-
-```
-pip install -r requirements.txt
-python -m streamlit run dashboard.py
-```
 
 ---
 
