@@ -91,8 +91,15 @@ de `admins` que faltaba y `creado_por` puesto por la base).
 - **Categoría**: Uni-Dat la guarda como texto libre ("Primera oro f3"); se
   agrupa por la primera palabra ("Primera").
 - **Chances en 22 rival**: Uni-Dat no las registra. Se le suman a un partido ya
-  publicado desde CARGAR PARTIDO → *Chances en 22 (Uni-Dat)* (una fila de
-  `partidos_manuales` con `partido_id`).
+  publicado desde CARGAR PARTIDO → *Chances en 22 y tarjetas (Uni-Dat)* (una
+  fila de `partidos_manuales` con `partido_id`, el "complemento").
+- **Tarjetas corregidas** (21 oct): en el mismo complemento, si las de Uni-Dat
+  quedaron mal. Se guardan sólo si son distintas de las de Uni-Dat (las
+  reemplazan enteras; el partido guarda las originales en `tarjetas_unidat` y
+  avisa "tarjetas corregidas en el tablero"). Si se vuelven a dejar iguales, la
+  corrección se borra. El detalle por tiempo sigue siendo el de Uni-Dat.
+  **Ojo:** guardar el complemento reemplaza todo su `datos`: chances y tarjetas
+  van siempre juntas en el mismo formulario.
 - **Planilla 2025, ojo**: "lanzamientos rival ganados" son los que **ganó UNI**
   en lanzamiento rival (verificado con las filas de totales en las 4 hojas).
   Leído al revés da "el rival ganó 36 de 188 scrums propios" (era 152 de 188).
@@ -195,7 +202,7 @@ secciones reciben una temporada (para un partido, una temporada de uno).
   le falta `grant select on public.admins to authenticated` (pasó el 13 oct;
   también rompe publicar en Uni-Dat). Lo pone el `.sql` del tablero.
 - La sesión dura 1 hora y se renueva sola (refresh token).
-- Partido nuevo / Corregir o borrar / Chances en 22 (Uni-Dat). Valida rival,
+- Partido nuevo / Corregir o borrar / Chances en 22 y tarjetas (Uni-Dat). Valida rival,
   metidas ≤ pateadas, conversiones pateadas ≤ tries, ganados ≤ lanzados,
   concretadas ≤ chances; si tries +
   patadas no dan el tanteo, avisa pero guarda. Tackles: CSV del Tackle Tracker.
@@ -252,7 +259,7 @@ Ninguna escribe en la base real. Correr todas antes de publicar.
 | `comparar_con_unidat.py [partidos.json]` | las funciones reales de Uni-Dat (Node) contra `calculos.py`, campo por campo, en todos los CSV + Alma; con un JSON bajado de la base (`partidos?select=id,rival,fecha,main:stats->main,...`), en todos los partidos reales |
 | `prueba_objetivos.py` | los objetivos en los bordes (0 de 0, 60% justo, mitad justa, 10 penales, dato que falta) |
 | `prueba_demo.py` | todas las pestañas y todos los partidos (2026 de prueba + 2025) sin errores |
-| `prueba_carga.py` | CARGAR PARTIDO contra una base falsa: login (mal, no admin, vacío, mayúsculas), validaciones, guardar, no duplicar, corregir, borrar, renovar sesión, chances en 22 |
+| `prueba_carga.py` | CARGAR PARTIDO contra una base falsa: login (mal, no admin, vacío, mayúsculas), validaciones, guardar, no duplicar, corregir, borrar, renovar sesión, chances en 22, tarjetas corregidas (agregar, sacar, volver a Uni-Dat, no pisar las chances) |
 | `prueba_xss.py` | nombres maliciosos en rival/jugador/motivo no llegan como HTML ni a los gráficos |
 | `prueba_real.py` | el tablero entero con la base REAL, sólo lectura (corta si algo intenta escribir): correrla después de cargar partidos |
 | `seguridad_anon.py` | permisos de la base REAL sin usuario (cada intento está armado para no escribir aunque el permiso estuviera abierto) |

@@ -69,6 +69,8 @@ def marcador(p):
     res = {"G": "Ganado", "P": "Perdido", "E": "Empatado"}[C.resultado(p)]
     origen = {"unidat": "Cargado en Uni-Dat", "manual": "Cargado a mano en el tablero",
               "planilla": "Planilla 2025 (sólo tackles)"}.get(p["fuente"], "")
+    if p.get("tarjetas_unidat"):
+        origen += " (tarjetas corregidas en el tablero)"
     cat = f" · {p['categoria']}" if p.get("categoria") else ""
     if p["fuente"] == "planilla":
         html(f'<div class="marcador"><div class="info">{esc(p.get("fecha_txt", ""))} · '
@@ -563,7 +565,9 @@ def tiempos(p):
                    [a["pts_r"], a["tries_r"], a["pen_r"], a["ko_r"], a["tar_r"]],
                    [b["pts_r"], b["tries_r"], b["pen_r"], b["ko_r"], b["tar_r"]],
                    nombres=("1° tiempo", "2° tiempo"), colores=(ACENTO, "#9fb8ff"))
-    nota("El 1° tiempo a la izquierda y el 2° a la derecha.")
+    nota("El 1° tiempo a la izquierda y el 2° a la derecha."
+         + (" Las tarjetas por tiempo son las de Uni-Dat: el total del partido se corrigió en el tablero."
+            if p.get("tarjetas_unidat") else ""))
     st.markdown("### Formaciones propias ganadas")
     items = []
     for s, per in ((a, "1° tiempo"), (b, "2° tiempo")):

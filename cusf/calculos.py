@@ -433,6 +433,14 @@ def desde_manual(fila):
     return p
 
 
+def tarjetas_corregidas(x):
+    """Tarjetas corregidas a mano en el complemento de un partido de Uni-Dat:
+    las cuatro cantidades, o None si no se corrigieron."""
+    if not isinstance(x, dict):
+        return None
+    return {k: max(0, _entero(x.get(k))) for k in ("am_u", "ro_u", "am_r", "ro_r")}
+
+
 def _ef22(x):
     if not isinstance(x, dict):
         return None

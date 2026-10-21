@@ -107,9 +107,13 @@ def partidos_base():
     for m in manuales:
         if m.get("partido_id"):
             p = por_id.get(m["partido_id"])
-            if p:   # complemento: lo que Uni-Dat no registra
-                p["efectividad_22"] = C._ef22((m.get("datos") or {}).get("efectividad_22"))
+            if p:   # complemento: lo que Uni-Dat no registra, y tarjetas corregidas
+                d = m.get("datos") or {}
+                p["efectividad_22"] = C._ef22(d.get("efectividad_22"))
                 p["complemento_id"] = m["id"]
+                tj = C.tarjetas_corregidas(d.get("tarjetas"))
+                if tj:
+                    p["tarjetas_unidat"], p["tarjetas"] = p["tarjetas"], tj
         else:
             sueltos.append(C.desde_manual(m))
     todos = [p for p in unidat + sueltos if p["fecha"]]

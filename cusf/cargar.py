@@ -44,7 +44,7 @@ def pagina():
         tipo, txt = st.session_state.pop("aviso")
         (st.success if tipo == "ok" else st.warning)(txt)
 
-    accion = st.radio("Qué querés hacer", ["Partido nuevo", "Corregir o borrar", "Chances en 22 (Uni-Dat)"],
+    accion = st.radio("Qué querés hacer", ["Partido nuevo", "Corregir o borrar", "Chances en 22 y tarjetas (Uni-Dat)"],
                       horizontal=True, key="accion")
     try:
         if accion == "Partido nuevo":
@@ -235,22 +235,37 @@ def _corregir():
             st.rerun()
 
 
+TARJETAS = (("am_u", "Amarillas UNI"), ("ro_u", "Rojas UNI"), ("am_r", "Amarillas rival"), ("ro_r", "Rojas rival"))
+
+
 def _complemento(unidat):
-    nota("Uni-Dat no registra las chances en 22 rival: acá se le suman a un partido ya publicado.")
+    nota("Para un partido ya publicado en Uni-Dat: sumarle las chances en 22 rival (Uni-Dat no las "
+         "registra) y agregar o sacar tarjetas si en Uni-Dat quedaron mal.")
     if not unidat:
         nota("No hay partidos de Uni-Dat."); return
     por_id = {p["id"]: p for p in reversed(unidat)}
     sel = st.selectbox("Partido de Uni-Dat", list(por_id), format_func=lambda i: etiqueta(por_id[i]), key="comp_sel")
     p = por_id[sel]
     ef = p.get("efectividad_22") or {}
+    original = p.get("tarjetas_unidat") or p["tarjetas"]   # lo que cargó Uni-Dat
     with st.form(f"comp_{sel}"):
+        st.markdown("#### Chances en 22 rival")
         a, b = st.columns(2)
         ch = _n(a, "Chances en 22", ef.get("chances"), f"cch{sel}")
         co = _n(b, "Concretadas", ef.get("concretadas"), f"cco{sel}")
+        st.markdown("#### Tarjetas")
+        nota("Lo que cargó Uni-Dat: " + " · ".join(f"{r} {original[k]}" for k, r in TARJETAS) + ". "
+             "Cambiá los números para agregar o sacar; si quedan iguales, vale lo de Uni-Dat.")
+        cols = st.columns(4)
+        T = {k: _n(col, r, p["tarjetas"][k], f"ct{k}{sel}") for col, (k, r) in zip(cols, TARJETAS)}
         ok = st.form_submit_button("Guardar", type="primary")
     if ok:
         if co > ch:
             st.error("Hay más concretadas que chances."); return
-        fila = {"partido_id": sel, "datos": {"efectividad_22": {"chances": ch, "concretadas": co}}}
-        fuente.guardar_manual(_token(), fila, p.get("complemento_id"))
-        st.success("Guardado.")
+        datos = {"efectividad_22": {"chances": ch, "concretadas": co}}
+        if T != original:   # sólo se guarda la corrección: si no, vale lo que diga Uni-Dat
+            datos["tarjetas"] = T
+        fuente.guardar_manual(_token(), {"partido_id": sel, "datos": datos}, p.get("complemento_id"))
+        st.session_state["aviso"] = ("ok", "Guardado." + (" Las tarjetas de este partido ahora son las "
+                                                          "corregidas acá." if "tarjetas" in datos else ""))
+        st.rerun()
