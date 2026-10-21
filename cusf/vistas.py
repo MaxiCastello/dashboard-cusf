@@ -412,6 +412,9 @@ def _tarjetas(t):
     tj, ps, n = t["totales"]["tarjetas"], t["partidos"], max(t["n_partidos"], 1)
     mu, mr = O.minutos_con_uno_menos(tj, "u"), O.minutos_con_uno_menos(tj, "r")
     st.markdown("### Tarjetas")
+    if t["planilla"]:   # sin el dato no es cero: no se muestran ceros
+        nota("La planilla 2025 no tiene las tarjetas.")
+        return
     items = [(tj["am_u"], "Amarillas UNI", AVISO), (tj["ro_u"], "Rojas UNI", MAL)]
     if n > 1:
         items.append((_coma((tj["am_u"] + tj["ro_u"]) / n), "Tarjetas UNI por partido", None))
