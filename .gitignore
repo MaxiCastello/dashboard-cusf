@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+# Claves: NUNCA al repo (es público)
+.streamlit/secrets.toml
+.env
+# Configuración local de Claude Code
+.claude/

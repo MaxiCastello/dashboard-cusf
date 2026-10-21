@@ -1,0 +1,21 @@
+# Tema y seguridad del tablero (Streamlit Cloud lee este archivo del repo).
+[theme]
+base = "dark"
+primaryColor = "#1a6fd4"
+backgroundColor = "#0a0c0f"
+secondaryBackgroundColor = "#13161b"
+textColor = "#e8eaf0"
+
+[client]
+# Los errores no muestran el código ni rutas del servidor a quien mira.
+showErrorDetails = "none"
+# Sin el menú de desarrollador (Deploy, Rerun, configuración).
+toolbarMode = "viewer"
+
+[server]
+# Lo único que se sube es un CSV de tackles: 2 MB sobra.
+maxUploadSize = 2
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
