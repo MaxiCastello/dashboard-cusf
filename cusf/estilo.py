@@ -68,7 +68,10 @@ CSS = f"""
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&display=swap');
 /* La fuente se hereda: así no pisa la de los íconos de Streamlit */
 .stApp {{ font-family: 'DM Sans', system-ui, sans-serif; }}
-.block-container {{ padding-top: 4.4rem; max-width: 1180px; }}
+/* Usa todo el ancho de la pantalla (notebook o monitor), con márgenes que
+   crecen con ella; sólo en pantallas muy anchas se frena para que se lea. */
+.block-container {{ padding-top: 4.4rem; max-width: 1760px;
+  padding-left: clamp(1rem, 3vw, 3.5rem); padding-right: clamp(1rem, 3vw, 3.5rem); }}
 h1, h2, h3 {{ font-family: 'Bebas Neue', 'Arial Narrow', sans-serif !important;
   letter-spacing: 2px; font-weight: 400 !important; }}
 h3 {{ font-size: 1.35rem !important; margin-top: .6rem !important; }}
@@ -98,7 +101,7 @@ h3 {{ font-size: 1.35rem !important; margin-top: .6rem !important; }}
 .nota {{ font-size:.78rem; color:{APAGADO}; margin:4px 0 10px; }}
 
 /* Anillos "X de Y" */
-.anillos {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(132px,1fr)); gap:10px; margin:4px 0 14px; }}
+.anillos {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(132px,1fr)); gap:10px; margin:4px 0 14px; }}
 .anillo {{ background:{SUP}; border:1px solid {BORDE}; border-radius:12px; padding:14px 8px 12px; text-align:center; }}
 .anillo .r {{ width:104px; height:104px; margin:0 auto; border-radius:50%; position:relative;
   display:grid; place-items:center; }}
@@ -127,9 +130,17 @@ table.t th:first-child, table.t td:first-child {{ text-align:left; font-family:'
 button[data-baseweb="tab"] {{ min-height:44px; }}
 button[data-baseweb="tab"] p {{ font-family:'Bebas Neue',sans-serif; font-size:1.05rem !important; letter-spacing:1.5px; }}
 
+/* Tablet parada: los gráficos lado a lado no entran, van uno abajo del otro */
+@media (max-width: 860px) {{
+  [data-testid="stHorizontalBlock"] {{ flex-wrap: wrap; }}
+  [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {{ min-width: 100% !important; flex: 1 1 100% !important; }}
+  .kpis:has(> .kpi:nth-child(6)) {{ grid-template-columns:repeat(3,1fr); }}
+}}
+
 @media (max-width: 640px) {{
   .block-container {{ padding-left:.8rem; padding-right:.8rem; padding-top:4rem; }}
   .enc img {{ height:42px; }} .enc .t {{ font-size:1.5rem; letter-spacing:3px; }}
+  .kpis, .kpis:has(> .kpi:nth-child(6)) {{ grid-template-columns:repeat(2,1fr); }}
   .kpi .v {{ font-size:1.9rem; }} .marcador .n {{ font-size:2.6rem; }}
   .anillos {{ grid-template-columns:repeat(2,1fr) !important; }}
 }}
