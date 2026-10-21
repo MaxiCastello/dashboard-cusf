@@ -59,8 +59,9 @@ def tablero():
         if not t["partidos"] and not t["planilla"]:
             st.info("Todavía no hay partidos de esta temporada.")
             return
-        tabs = st.tabs(["Resumen", "Partidos", "Puntos", "Formaciones", "Penales", "Tackles", "Informe"])
-        secciones = [vistas.resumen, vistas.evolucion, vistas.puntos, vistas.formaciones,
+        tabs = st.tabs(["Resumen", "Objetivos", "Partidos", "Puntos", "Formaciones", "Penales", "Tackles",
+                        "Informe"])
+        secciones = [vistas.resumen, vistas.objetivos, vistas.evolucion, vistas.puntos, vistas.formaciones,
                      vistas.penales, vistas.tackles]
         for tab, f in zip(tabs, secciones):
             with tab:
@@ -75,20 +76,23 @@ def tablero():
         vistas.tackles(t, p)
         return
     tp = vistas.una(p, t)
-    tabs = st.tabs(["Resumen", "1° vs 2° tiempo", "Puntos", "Formaciones", "Penales", "Tackles", "Informe"])
+    tabs = st.tabs(["Resumen", "Objetivos", "1° vs 2° tiempo", "Puntos", "Formaciones", "Penales", "Tackles",
+                    "Informe"])
     with tabs[0]:
         vistas.partido_resumen(p, t, tp)
     with tabs[1]:
-        vistas.tiempos(p)
+        vistas.objetivos(tp)
     with tabs[2]:
-        vistas.puntos(tp)
+        vistas.tiempos(p)
     with tabs[3]:
-        vistas.formaciones(tp)
+        vistas.puntos(tp)
     with tabs[4]:
-        vistas.penales(tp)
+        vistas.formaciones(tp)
     with tabs[5]:
-        vistas.tackles(tp, p)
+        vistas.penales(tp)
     with tabs[6]:
+        vistas.tackles(tp, p)
+    with tabs[7]:
         _informe(f"Informe UNI {p['score_uni']}-{p['score_rival']} {p['rival']} ({p['fecha']})", tp, p["id"])
 
 

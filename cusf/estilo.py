@@ -125,6 +125,15 @@ table.t td {{ padding:7px 6px; text-align:right; border-bottom:1px solid {SUP2};
 table.t td {{ white-space:nowrap; }}
 table.t th:first-child, table.t td:first-child {{ text-align:left; font-family:'DM Sans',sans-serif; }}
 .tabla-scroll {{ overflow-x:auto; }}
+/* Objetivos partido a partido: la marca y el color dicen lo mismo */
+table.metas td {{ white-space:normal; }}
+table.metas .meta {{ display:block; font-size:.74rem; color:{APAGADO}; margin-top:2px; }}
+table.objetivos th:first-child, table.objetivos td:first-child {{ position:sticky; left:0; background:{BG}; z-index:1; }}
+table.objetivos th {{ text-align:center; white-space:normal; min-width:92px; }}
+table.objetivos td.obj {{ text-align:center; }}
+table.objetivos td.ok {{ color:{UNI}; background:rgba(0,200,83,.10); }}
+table.objetivos td.no {{ color:#ff6b81; background:rgba(255,23,68,.10); }}
+table.objetivos td.sd {{ color:{APAGADO}; font-size:.75rem; }}
 
 /* Pestañas legibles y tocables */
 button[data-baseweb="tab"] {{ min-height:44px; }}

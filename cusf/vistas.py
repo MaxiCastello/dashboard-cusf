@@ -11,6 +11,7 @@ import streamlit as st
 
 from . import calculos as C
 from . import graficos as G
+from . import objetivos as O
 from .estilo import (UNI, RIVAL, MAL, NEUTRO, ACENTO, AVISO, TK, TK_NOMBRE,
                      esc, pct, xdey, html, kpis, anillos, aclarar, tabla, nota)
 
@@ -34,9 +35,8 @@ def etiqueta(p, corta=False):
 
 
 def _ejex(ps):
-    """Rótulos cortos para el eje de los gráficos: el rival (con la fecha si se repite)."""
-    rivales = [p["rival"] for p in ps]
-    return [p["rival"] if rivales.count(p["rival"]) == 1 else etiqueta(p, True) for p in ps]
+    """Rótulos del eje de los gráficos: la fecha y el rival, en todos."""
+    return [etiqueta(p, True) for p in ps]
 
 
 def una(p, t):
@@ -136,6 +136,74 @@ def resumen(t):
             nota("Tackles hechos (positivos, neutrales y negativos).")
 
 
+# ── Objetivos ────────────────────────────────────────────────────────────────
+
+def _valor(e):
+    """'8 de 9 · 89%' o la cantidad."""
+    return xdey(e["a"], e["b"]) if e["b"] is not None else str(e["a"])
+
+
+def _celda(e):
+    if e is None:
+        return '<td class="obj sd">sin datos</td>'
+    marca, clase = ("✓", "ok") if e["cumple"] else ("✗", "no")
+    return f'<td class="obj {clase}">{marca} {esc(_valor(e))}</td>'
+
+
+def _tabla_metas(columnas, filas):
+    """Como tabla(), pero la meta va en chico abajo del objetivo: en el
+    celular entra entera. filas: [(objetivo, meta, valor, cumplido)]"""
+    cab = "".join(f"<th>{esc(c)}</th>" for c in columnas)
+    cuerpo = "".join(f'<tr><td>{esc(o)}<span class="meta">{esc(m)}</span></td><td>{esc(v)}</td><td>{esc(c)}</td></tr>'
+                     for o, m, v, c in filas)
+    html(f'<div class="tabla-scroll"><table class="t metas"><thead><tr>{cab}</tr></thead>'
+         f"<tbody>{cuerpo}</tbody></table></div>")
+
+
+def objetivos(t):
+    ps = t["partidos"]
+    if t["planilla"]:
+        nota("La planilla 2025 no tiene estos datos partido a partido: los objetivos se miden desde 2026.")
+        return
+    if not ps:
+        return
+    if len(ps) == 1:
+        filas = []
+        for o in O.OBJETIVOS:
+            e = O.evaluar(o, ps[0])
+            filas.append([o["nombre"], o["meta"], _valor(e) if e else "—",
+                          ("✓ Sí" if e["cumple"] else "✗ No") if e else "Sin datos"])
+        _tabla_metas(["Objetivo", "En el partido", "Cumplido"], filas)
+        return
+    filas, cumplidos, no, sin = [], [], [], []
+    for o in O.OBJETIVOS:
+        s = O.temporada(o, ps)
+        if s["b"] is not None:
+            temp = xdey(s["a"], s["b"]) if s["medidos"] else "—"
+        else:
+            temp = f"{_coma(s['a'] / s['medidos'])} por partido" if s["medidos"] else "—"
+        cuantos = f"en {s['cumplidos']} de {s['medidos']}" if s["medidos"] else "sin datos"
+        if s["sin_datos"] and s["medidos"]:
+            cuantos += f" ({s['sin_datos']} sin datos)"
+        filas.append([o["nombre"], o["meta"], temp, cuantos])
+        cumplidos.append(s["cumplidos"]); no.append(s["medidos"] - s["cumplidos"]); sin.append(s["sin_datos"])
+
+    st.markdown("### En cuántos partidos se cumplió cada objetivo")
+    G.apiladas([o["nombre"] for o in O.OBJETIVOS],
+               [("Cumplido", cumplidos, UNI), ("No cumplido", no, MAL), ("Sin datos", sin, NEUTRO)])
+    _tabla_metas(["Objetivo", "Temporada", "Se cumplió"], filas)
+    nota("Temporada: la suma de los partidos que tienen el dato (en penales y tarjetas, el promedio por partido).")
+    st.markdown("### Partido a partido")
+    cab = "".join(f"<th>{esc(o['nombre'])}</th>" for o in O.OBJETIVOS)
+    cuerpo = "".join(
+        f"<tr><td>{esc(etiqueta(p, True))}</td>" + "".join(_celda(O.evaluar(o, p)) for o in O.OBJETIVOS) + "</tr>"
+        for p in reversed(ps))
+    html(f'<div class="tabla-scroll"><table class="t objetivos"><thead><tr><th>Partido</th>{cab}</tr></thead>'
+         f"<tbody>{cuerpo}</tbody></table></div>")
+    nota("Las chances en 22 se cargan a mano (Uni-Dat no las registra) y las salidas del rival que "
+         "se quedó UNI sólo están en los partidos cargados en Uni-Dat: por eso a algunos les falta el dato.")
+
+
 # ── Partido a partido ────────────────────────────────────────────────────────
 
 def evolucion(t):
@@ -167,10 +235,12 @@ def evolucion(t):
                        [xdey(p[k][g], p[k][l]) for p in ps])
                       for nombre, g, l, color in (("UNI", "uGan", lan, UNI), ("Rival", "rGan", rlan, RIVAL))]
             f = tot[k]
-            G.lineas(x, series, alto=320, por_ciento=True,
-                     referencias=[(pct(f["uGan"], f[lan]) if f[lan] else None, "UNI en la temporada", UNI)])
-    nota("Arriba se elige Line, Scrum o Salidas. La línea punteada es UNI sumando toda la temporada. "
-         "Pasá el dedo o el mouse por un punto para ver el X de Y.")
+            refs = [(pct(f["uGan"], f[lan]) if f[lan] else None, "UNI en la temporada", UNI)]
+            if k != "salida":
+                refs.append((100, "Objetivo: 100%", AVISO))
+            G.lineas(x, series, alto=320, por_ciento=True, referencias=refs)
+    nota("Arriba se elige Line, Scrum o Salidas. La línea punteada verde es UNI sumando toda la temporada; "
+         "la amarilla, el objetivo. Pasá el dedo o el mouse por un punto para ver el X de Y.")
 
     c1, c2 = st.columns(2, gap="large")
     with c1:
@@ -182,7 +252,7 @@ def evolucion(t):
         st.markdown("### Penales cometidos")
         G.lineas(x, [("UNI", [_pen(p) for p in ps], UNI, None),
                      ("Rival", [_pen(p, "rival") for p in ps], RIVAL, None)],
-                 referencias=[(_pen(tot) / n, "Promedio UNI", UNI)])
+                 referencias=[(_pen(tot) / n, "Promedio UNI", UNI), (10, "Objetivo: menos de 10", AVISO)])
     con_tk = [p for p in ps if p["tackles"]]
     if len(con_tk) > 1:
         st.markdown("### Tackles completados, partido a partido")
@@ -322,16 +392,48 @@ def penales(t):
     tot, n = t["totales"], max(t["n_partidos"], 1)
     pen = tot["penales"]
     pu, pr = _pen(tot), _pen(tot, "rival")
-    tj = tot["tarjetas"]
     items = [(pu, "Cometidos por UNI", UNI), (pr, "Cometidos por el rival", RIVAL)]
     if n > 1:
         items.insert(1, (f"{pu / n:.1f}".replace(".", ","), "UNI por partido", UNI))
-    if any(tj.values()):
-        items += [(f"{tj['am_u']} / {tj['ro_u']}", "Amarillas / rojas UNI", None)]
     kpis(items)
     if not pen:
         nota("No hay penales cargados.")
-        return
+    else:
+        _penales_detalle(t, pen)
+    _tarjetas(t)
+
+
+def _coma(x):
+    return f"{x:.1f}".replace(".", ",").replace(",0", "")
+
+
+def _tarjetas(t):
+    """Tarjetas y el tiempo jugado con uno menos (UNI y el rival)."""
+    tj, ps, n = t["totales"]["tarjetas"], t["partidos"], max(t["n_partidos"], 1)
+    mu, mr = O.minutos_con_uno_menos(tj, "u"), O.minutos_con_uno_menos(tj, "r")
+    st.markdown("### Tarjetas")
+    items = [(tj["am_u"], "Amarillas UNI", AVISO), (tj["ro_u"], "Rojas UNI", MAL)]
+    if n > 1:
+        items.append((_coma((tj["am_u"] + tj["ro_u"]) / n), "Tarjetas UNI por partido", None))
+    items += [(f"{mu}'", "Minutos UNI con uno menos", UNI), (f"{mr}'", "Minutos del rival con uno menos", RIVAL)]
+    kpis(items)
+    if len(ps) > 1 and any(O.minutos_con_uno_menos(p["tarjetas"], l) for p in ps for l in "ur"):
+        def hov(p, l):
+            a, r = p["tarjetas"]["am_" + l], p["tarjetas"]["ro_" + l]
+            return f"{O.minutos_con_uno_menos(p['tarjetas'], l)} min · {a} amarilla(s), {r} roja(s)"
+        st.markdown("### Minutos con uno menos, partido a partido")
+        G.barras(_ejex(ps), [("UNI", [O.minutos_con_uno_menos(p["tarjetas"], "u") for p in ps], UNI,
+                              [hov(p, "u") for p in ps]),
+                             ("Rival", [O.minutos_con_uno_menos(p["tarjetas"], "r") for p in ps], RIVAL,
+                              [hov(p, "r") for p in ps])],
+                 titulo_y="Minutos", sufijo="'")
+    nota(f"Cada amarilla son {O.MIN_AMARILLA} minutos afuera y cada roja {O.MIN_ROJA} "
+         f"(la roja de 20 minutos: después entra un reemplazo; si la roja es definitiva, el equipo "
+         f"sigue con uno menos hasta el final y acá igual se cuentan {O.MIN_ROJA}). "
+         f"Objetivo: 0 tarjetas por partido.")
+
+
+def _penales_detalle(t, pen):
     sits = {}
     for f in pen:
         s = sits.setdefault(f["situacion"], [0, 0]); s[0] += f["uni"]; s[1] += f["rival"]

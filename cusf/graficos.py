@@ -92,7 +92,8 @@ def lineas(x, series, alto=300, por_ciento=False, referencias=()):
 
 
 def acumulado(x, uni, rival, alto=300):
-    """Puntos a favor y en contra sumados partido a partido (áreas)."""
+    """Puntos a favor y en contra sumados partido a partido (áreas). Al
+    pasar por un punto: el partido, lo que sumó ese partido y el total."""
     def suma(v):
         s, out = 0, []
         for n in v:
@@ -100,13 +101,30 @@ def acumulado(x, uni, rival, alto=300):
             out.append(s)
         return out
     fig = go.Figure()
-    for nombre, ys, color, relleno in (("En contra", suma(rival), RIVAL, "rgba(255,152,0,.12)"),
-                                       ("A favor", suma(uni), UNI, "rgba(0,200,83,.16)")):
-        fig.add_scatter(x=x, y=ys, name=nombre, mode="lines+markers", fill="tozeroy", fillcolor=relleno,
-                        line=dict(color=color, width=3), marker=dict(size=7, color=color),
-                        hovertemplate="%{x}<br>" + nombre + " (sumados): %{y}<extra></extra>")
+    for nombre, pts, color, relleno in (("En contra", rival, RIVAL, "rgba(255,152,0,.12)"),
+                                        ("A favor", uni, UNI, "rgba(0,200,83,.16)")):
+        fig.add_scatter(x=x, y=suma(pts), name=nombre, mode="lines+markers", fill="tozeroy", fillcolor=relleno,
+                        line=dict(color=color, width=3), marker=dict(size=7, color=color), customdata=pts,
+                        hovertemplate=nombre + ": +%{customdata} en el partido · total %{y}<extra></extra>")
+    # un solo cartel por partido, con a favor y en contra (el título es el partido)
     fig.update_layout(xaxis=dict(showgrid=False), legend=dict(y=1.02, yanchor="bottom", x=0, traceorder="reversed"),
-                      margin=dict(t=34))
+                      margin=dict(t=34), hovermode="x unified")
+    grafico(fig, alto)
+
+
+def barras(x, series, alto=300, titulo_y="", sufijo=""):
+    """Barras verticales lado a lado, una tanda por partido.
+    series: [(nombre, valores, color, hover_textos)]"""
+    fig = go.Figure()
+    for nombre, ys, color, hov in series:
+        fig.add_bar(x=x, y=ys, name=nombre, marker_color=color, customdata=hov,
+                    text=[f"{v}{sufijo}" if v else "" for v in ys], textposition="outside", cliponaxis=False,
+                    textfont=dict(family="DM Mono, monospace", size=11, color=APAGADO),
+                    hovertemplate="%{x}<br>" + nombre + ": %{customdata}<extra></extra>")
+    tope = max([v for _, ys, _, _ in series for v in ys] + [1])
+    fig.update_layout(barmode="group", bargap=.3, xaxis=dict(showgrid=False),
+                      yaxis=dict(title=titulo_y, range=[0, tope * 1.2]),
+                      legend=dict(y=1.02, yanchor="bottom", x=0), margin=dict(t=34))
     grafico(fig, alto)
 
 
