@@ -401,6 +401,8 @@ def desde_unidat(fila):
     if isinstance(ses, dict) and ses.get("registros"):
         jug = tk.get("jugadores") if isinstance(tk.get("jugadores"), dict) else {}
         p["tackles"] = tackles_desde_registros(ses["registros"], jug)
+        # los convocados (dorsal -> nombre): cuentan como PJ aunque no tacklearan
+        p["plantel"] = {texto(str(d), 4): texto(n) for d, n in jug.items() if texto(n)}
     return p
 
 
@@ -480,11 +482,22 @@ def sumar(partidos):
     return t
 
 
+# Nombres mal escritos -> el correcto (la clave, sin tildes ni mayúsculas).
+# 2025: en las planillas de la Fecha 14 y 15 (los Excel tienen fórmulas y
+# guardarlos desde Python les borra los valores). 2026: en la plantilla del
+# Tackle Tracker.
+NOMBRES_CORREGIDOS = {"santiago hothan": "Santiago Hotham", "julian felitas": "Julian Fleitas",
+                      "alvaro otteo": "Alvaro Oteo", "nahuel gonzales": "Nahuel Gonzalez"}
+
+
 def tackles_temporada(partidos):
     """Tackles por jugador sumando partidos. El jugador se reconoce por el
     nombre (sin tildes ni mayúsculas): el dorsal cambia de un partido a otro.
-    PJ = partidos con al menos un tackle anotado (la planilla 2025 lista a
-    todo el plantel aunque no haya jugado)."""
+    PJ = partidos en la lista del Tackle Tracker, aunque no haya tackleado
+    (la planilla 2025 y el plantel de Uni-Dat listan a los convocados; de un
+    partido cargado a mano sólo se conocen los que tacklearon). Titular =
+    camiseta 1 a 15 en ese partido; suplente = 16 en adelante; sin número,
+    ninguno de los dos."""
     import unicodedata
     def clave(n):
         n = unicodedata.normalize("NFD", " ".join(str(n).split()).lower())
@@ -492,16 +505,32 @@ def tackles_temporada(partidos):
     out = {}
     for p in partidos:
         vistos = set()
-        for f in p["tackles"]:
-            if not (f["pos"] + f["neu"] + f["neg"] + f["err"]):
-                continue
-            k = clave(f["nombre"])
-            g = out.setdefault(k, {"nombre": _mayusculas(f["nombre"]), "pj": 0, "pos": 0, "neu": 0, "neg": 0, "err": 0})
+        # los del plantel que no tienen fila de tackles, con todo en cero (el
+        # dorsal manda: así no se duplica si el nombre se anotó distinto)
+        con_fila = {f["dorsal"] for f in p["tackles"]}
+        sin_tk = [{"dorsal": d, "nombre": n, "pos": 0, "neu": 0, "neg": 0, "err": 0}
+                  for d, n in (p.get("plantel") or {}).items() if d not in con_fila]
+        for f in p["tackles"] + sin_tk:
+            nombre = NOMBRES_CORREGIDOS.get(clave(f["nombre"]), f["nombre"])
+            k = clave(nombre)
+            g = out.setdefault(k, {"nombre": _mayusculas(nombre), "pj": 0, "tit": 0, "sup": 0,
+                                   "pos": 0, "neu": 0, "neg": 0, "err": 0})
             for c in ("pos", "neu", "neg", "err"):
                 g[c] += f[c]
             if k not in vistos:
                 g["pj"] += 1; vistos.add(k)
+                d = str(f.get("dorsal", "")).strip()
+                if d.isdigit() and int(d) >= 1:
+                    g["tit" if int(d) <= 15 else "sup"] += 1
     return list(out.values())
+
+
+def pj_texto(j):
+    """'13 (10 titular - 3 suplente)'; si a algún partido le falta el número
+    de camiseta, sólo los PJ (los de adentro no sumarían el total)."""
+    if j["tit"] + j["sup"] != j["pj"]:
+        return str(j["pj"])
+    return f"{j['pj']} ({j['tit']} titular - {j['sup']} suplente)"
 
 
 def _mayusculas(nombre):

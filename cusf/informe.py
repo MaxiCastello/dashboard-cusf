@@ -104,9 +104,9 @@ def generar(titulo, t, etiqueta):
         filas = [["Jugador", "PJ", "Hechos", "Errados", "Completados", "Pos.", "Neu.", "Neg."]]
         for j in jug:
             hechos = j["pos"] + j["neu"] + j["neg"]
-            filas.append([j["nombre"], j["pj"], hechos, j["err"], xdey(hechos, hechos + j["err"]),
+            filas.append([j["nombre"], C.pj_texto(j), hechos, j["err"], xdey(hechos, hechos + j["err"]),
                           j["pos"], j["neu"], j["neg"]])
-        h.append(_tabla(filas, [140, 30, 50, 50, 110, 40, 40, 40]))
+        h.append(_tabla(filas, [118, 118, 42, 42, 85, 36, 36, 36]))
     h.append(Spacer(1, 8))
     doc.build(h)
     return buf.getvalue()

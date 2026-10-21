@@ -122,7 +122,7 @@ def resumen(t):
         items.append(("Chances en 22 concretadas", e["concretadas"], e["chances"], ACENTO, None))
     anillos(items)
 
-    top = sorted(jug, key=lambda j: -(j["pos"] + j["neu"] + j["neg"]))[:8]
+    top = sorted([j for j in jug if _hechos([j])], key=lambda j: -_hechos([j]))[:8]
     if not t["planilla"] and len(ps) > 1:
         c1, c2 = st.columns(2, gap="large")
         with c1:
@@ -176,9 +176,11 @@ def objetivos(t):
     if len(ps) == 1:
         for o in O.OBJETIVOS:
             e = O.evaluar(o, ps[0])
-            grande = ("✓ Sí" if e["cumple"] else "✗ No") if e else "—"
-            cards.append(_card(o["nombre"], o["meta"], grande, "" if e else "sin datos",
-                               f"En el partido: {_valor(e)}" if e else "", clase=("ok" if e["cumple"] else "no") if e else ""))
+            if e:
+                cards.append(_card(o["nombre"], o["meta"], "✓ Sí" if e["cumple"] else "✗ No", "",
+                                   f"En el partido: {_valor(e)}", clase="ok" if e["cumple"] else "no"))
+            else:
+                cards.append(_card(o["nombre"], o["meta"], "—", "sin datos", ""))
         html('<div class="objs">' + "".join(cards) + "</div>")
         return
     for o in O.OBJETIVOS:
@@ -512,30 +514,35 @@ def tackles(t, partido=None):
             pt = sum(f["pt"] for f in partido["tackles"]); ptE = sum(f["pt_err"] for f in partido["tackles"])
             sg = sum(f["st"] for f in partido["tackles"]); sgE = sum(f["st_err"] for f in partido["tackles"])
             anillos([("Completados", pt - ptE, pt, UNI, "1° tiempo"), ("Completados", sg - sgE, sg, UNI, "2° tiempo")])
-        top = sorted(jug, key=lambda j: -(j["pos"] + j["neu"] + j["neg"]))[:8]
+        top = sorted([j for j in jug if _hechos([j])], key=lambda j: -_hechos([j]))[:8]
         st.markdown("### Los que más tacklearon")
         G.piruletas([j["nombre"] for j in top], [j["pos"] + j["neu"] + j["neg"] for j in top])
 
     st.markdown("### Por jugador")
-    orden = sorted(jug, key=lambda j: -(j["pos"] + j["neu"] + j["neg"] + j["err"]))[:18]
+    intentaron = [j for j in jug if j["pos"] + j["neu"] + j["neg"] + j["err"]]
+    orden = sorted(intentaron, key=lambda j: -(j["pos"] + j["neu"] + j["neg"] + j["err"]))[:18]
     G.apiladas([j["nombre"] for j in orden], [(TK_NOMBRE[k], [j[k] for j in orden], TK[k]) for k in TK])
     if len(jug) > len(orden):
         nota(f"Los {len(orden)} con más intentos; la tabla de abajo tiene a los {len(jug)}.")
 
     df = pd.DataFrame([{
-        "Jugador": j["nombre"], "PJ": j["pj"],
+        "Jugador": j["nombre"], "PJ": C.pj_texto(j),
         "Hechos": j["pos"] + j["neu"] + j["neg"], "Errados": j["err"],
-        "Completados": pct(j["pos"] + j["neu"] + j["neg"], j["pos"] + j["neu"] + j["neg"] + j["err"]),
+        # sin intentos no hay porcentaje (queda vacío, no 0%)
+        "Completados": pct(j["pos"] + j["neu"] + j["neg"], j["pos"] + j["neu"] + j["neg"] + j["err"])
+        if j["pos"] + j["neu"] + j["neg"] + j["err"] else None,
         "Positivos": j["pos"], "Neutrales": j["neu"], "Negativos": j["neg"]} for j in jug])
     df = df.sort_values(["Hechos", "Completados"], ascending=False)
     cols = ["Jugador", "PJ", "Hechos", "Errados", "Completados", "Positivos", "Neutrales", "Negativos"]
     if partido:
         cols.remove("PJ")
     st.dataframe(df[cols], hide_index=True, width="stretch", height=min(38 + 35 * len(df), 740),
-                 column_config={"Completados": st.column_config.ProgressColumn(
+                 column_config={"PJ": st.column_config.TextColumn("PJ", width=210),
+                                "Completados": st.column_config.ProgressColumn(
                      "Completados", format="%d%%", min_value=0, max_value=100)})
     if not partido:
-        nota("PJ = partidos con al menos un tackle anotado.")
+        nota("PJ = partidos en los que estuvo en la lista del Tackle Tracker, aunque no haya tackleado. "
+             "Titular: jugó con la camiseta 1 a 15 en ese partido; suplente: de la 16 en adelante.")
 
 
 # ── Un partido ───────────────────────────────────────────────────────────────

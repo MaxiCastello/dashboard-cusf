@@ -132,7 +132,8 @@ table.t th:first-child, table.t td:first-child {{ text-align:left; font-family:'
 .objc .n {{ font-family:'Bebas Neue',sans-serif; font-size:1.2rem; letter-spacing:1.5px; line-height:1.1; }}
 .objc .m {{ font-size:.74rem; color:{APAGADO}; margin-top:2px; line-height:1.3; }}
 .objc .v {{ font-family:'Bebas Neue',sans-serif; font-size:2rem; line-height:1; margin-top:10px; }}
-.objc .v small {{ font-family:'DM Mono',monospace; font-size:.68rem; color:{APAGADO}; letter-spacing:1px; margin-left:6px; }}
+.objc .v small {{ font-family:'DM Mono',monospace; font-size:.68rem; color:{APAGADO}; letter-spacing:1px;
+  margin-left:6px; }}
 .objc .v.ok {{ color:{UNI}; }} .objc .v.no {{ color:#ff6b81; }}
 .objc .pts {{ display:flex; flex-wrap:wrap; gap:4px; margin-top:8px; }}
 .objc .pts span {{ width:20px; height:20px; border-radius:4px; display:grid; place-items:center;
