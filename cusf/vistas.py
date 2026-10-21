@@ -152,14 +152,17 @@ def _celda(e):
     return f'<td class="obj {clase}">{marca} {esc(_valor(e))}</td>'
 
 
-def _tabla_metas(columnas, filas):
-    """Como tabla(), pero la meta va en chico abajo del objetivo: en el
-    celular entra entera. filas: [(objetivo, meta, valor, cumplido)]"""
-    cab = "".join(f"<th>{esc(c)}</th>" for c in columnas)
-    cuerpo = "".join(f'<tr><td>{esc(o)}<span class="meta">{esc(m)}</span></td><td>{esc(v)}</td><td>{esc(c)}</td></tr>'
-                     for o, m, v, c in filas)
-    html(f'<div class="tabla-scroll"><table class="t metas"><thead><tr>{cab}</tr></thead>'
-         f"<tbody>{cuerpo}</tbody></table></div>")
+def _cuadradito(e, p):
+    """Un partido en la card: ✓ cumplido, ✗ no, vacío sin datos."""
+    marca, clase = ("✓", "ok") if e and e["cumple"] else ("✗", "no") if e else ("", "sd")
+    txt = f"{etiqueta(p, True)}: {_valor(e) if e else 'sin datos'}"
+    return f'<span class="{clase}" title="{esc(txt)}">{marca}</span>'
+
+
+def _card(nombre, meta, grande, chico, abajo, puntos="", clase=""):
+    return (f'<div class="objc"><div class="n">{esc(nombre)}</div><div class="m">{esc(meta)}</div>'
+            f'<div class="v {clase}">{esc(grande)}<small>{esc(chico)}</small></div>'
+            f'{f"<div class=pts>{puntos}</div>" if puntos else ""}<div class="t">{esc(abajo)}</div></div>')
 
 
 def objetivos(t):
@@ -169,32 +172,33 @@ def objetivos(t):
         return
     if not ps:
         return
+    cards = []
     if len(ps) == 1:
-        filas = []
         for o in O.OBJETIVOS:
             e = O.evaluar(o, ps[0])
-            filas.append([o["nombre"], o["meta"], _valor(e) if e else "—",
-                          ("✓ Sí" if e["cumple"] else "✗ No") if e else "Sin datos"])
-        _tabla_metas(["Objetivo", "En el partido", "Cumplido"], filas)
+            grande = ("✓ Sí" if e["cumple"] else "✗ No") if e else "—"
+            cards.append(_card(o["nombre"], o["meta"], grande, "" if e else "sin datos",
+                               f"En el partido: {_valor(e)}" if e else "", clase=("ok" if e["cumple"] else "no") if e else ""))
+        html('<div class="objs">' + "".join(cards) + "</div>")
         return
-    filas, cumplidos, no, sin = [], [], [], []
     for o in O.OBJETIVOS:
         s = O.temporada(o, ps)
-        if s["b"] is not None:
-            temp = xdey(s["a"], s["b"]) if s["medidos"] else "—"
+        if not s["medidos"]:
+            temp = "Sin datos en ningún partido"
+        elif s["b"] is not None:
+            temp = f"Temporada: {xdey(s['a'], s['b'])}"
         else:
-            temp = f"{_coma(s['a'] / s['medidos'])} por partido" if s["medidos"] else "—"
-        cuantos = f"en {s['cumplidos']} de {s['medidos']}" if s["medidos"] else "sin datos"
+            temp = f"Temporada: {_coma(s['a'] / s['medidos'])} por partido"
         if s["sin_datos"] and s["medidos"]:
-            cuantos += f" ({s['sin_datos']} sin datos)"
-        filas.append([o["nombre"], o["meta"], temp, cuantos])
-        cumplidos.append(s["cumplidos"]); no.append(s["medidos"] - s["cumplidos"]); sin.append(s["sin_datos"])
+            temp += f" ({s['sin_datos']} sin datos)"
+        puntos = "".join(_cuadradito(O.evaluar(o, p), p) for p in ps)
+        grande = f"{s['cumplidos']} de {s['medidos']}" if s["medidos"] else "—"
+        cards.append(_card(o["nombre"], o["meta"], grande, "partidos" if s["medidos"] else "", temp, puntos))
 
     st.markdown("### En cuántos partidos se cumplió cada objetivo")
-    G.apiladas([o["nombre"] for o in O.OBJETIVOS],
-               [("Cumplido", cumplidos, UNI), ("No cumplido", no, MAL), ("Sin datos", sin, NEUTRO)])
-    _tabla_metas(["Objetivo", "Temporada", "Se cumplió"], filas)
-    nota("Temporada: la suma de los partidos que tienen el dato (en penales y tarjetas, el promedio por partido).")
+    html('<div class="objs">' + "".join(cards) + "</div>")
+    nota("Cada cuadradito es un partido, del primero al último: ✓ se cumplió, ✗ no, vacío si falta el dato. "
+         "Temporada: la suma de los partidos que tienen el dato (en penales y tarjetas, el promedio por partido).")
     st.markdown("### Partido a partido")
     cab = "".join(f"<th>{esc(o['nombre'])}</th>" for o in O.OBJETIVOS)
     cuerpo = "".join(

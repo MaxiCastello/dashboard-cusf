@@ -125,9 +125,22 @@ table.t td {{ padding:7px 6px; text-align:right; border-bottom:1px solid {SUP2};
 table.t td {{ white-space:nowrap; }}
 table.t th:first-child, table.t td:first-child {{ text-align:left; font-family:'DM Sans',sans-serif; }}
 .tabla-scroll {{ overflow-x:auto; }}
-/* Objetivos partido a partido: la marca y el color dicen lo mismo */
-table.metas td {{ white-space:normal; }}
-table.metas .meta {{ display:block; font-size:.74rem; color:{APAGADO}; margin-top:2px; }}
+/* Objetivos: una card por objetivo; la marca y el color dicen lo mismo */
+.objs {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px; margin:4px 0 12px; }}
+.objc {{ background:{SUP}; border:1px solid {BORDE}; border-radius:12px; padding:12px 14px;
+  display:flex; flex-direction:column; }}
+.objc .n {{ font-family:'Bebas Neue',sans-serif; font-size:1.2rem; letter-spacing:1.5px; line-height:1.1; }}
+.objc .m {{ font-size:.74rem; color:{APAGADO}; margin-top:2px; line-height:1.3; }}
+.objc .v {{ font-family:'Bebas Neue',sans-serif; font-size:2rem; line-height:1; margin-top:10px; }}
+.objc .v small {{ font-family:'DM Mono',monospace; font-size:.68rem; color:{APAGADO}; letter-spacing:1px; margin-left:6px; }}
+.objc .v.ok {{ color:{UNI}; }} .objc .v.no {{ color:#ff6b81; }}
+.objc .pts {{ display:flex; flex-wrap:wrap; gap:4px; margin-top:8px; }}
+.objc .pts span {{ width:20px; height:20px; border-radius:4px; display:grid; place-items:center;
+  font-size:.72rem; line-height:1; }}
+.objc .pts .ok {{ color:{UNI}; background:rgba(0,200,83,.16); }}
+.objc .pts .no {{ color:#ff6b81; background:rgba(255,23,68,.16); }}
+.objc .pts .sd {{ border:1px dashed {BORDE}; }}
+.objc .t {{ font-family:'DM Mono',monospace; font-size:.72rem; color:{TEXTO}; margin-top:auto; padding-top:8px; }}
 table.objetivos th:first-child, table.objetivos td:first-child {{ position:sticky; left:0; background:{BG}; z-index:1; }}
 table.objetivos th {{ text-align:center; white-space:normal; min-width:92px; }}
 table.objetivos td.obj {{ text-align:center; }}
