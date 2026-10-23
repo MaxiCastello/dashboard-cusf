@@ -21,17 +21,40 @@ p { margin: 0; }
 /* ── Barra de arriba (Tablero / Cargar partido) ─────────────────────────── */
 .barra { position: absolute; top: 0; left: 0; right: 0; height: 60px; background: var(--bg);
   display: flex; align-items: center; padding: 0 16px; gap: 4px; z-index: 2; }
-.barra nav { display: flex; gap: 4px; }
+.barra nav.arriba { display: flex; gap: 4px; }
 .barra a { display: inline-flex; align-items: center; gap: 8px; height: 28px; margin: 2px 0; padding: 0 8px;
   border-radius: 6px; font-size: 14px; line-height: 28px; color: rgba(232,234,240,.75); text-decoration: none; }
 .barra a svg { width: 16px; height: 16px; fill: rgba(232,234,240,.6); flex: none; }
 /* el texto ocupa lo que ocuparía en negrita (como Streamlit): no salta al elegirlo */
 .barra a span::after { content: attr(data-texto); display: block; height: 0; overflow: hidden;
   visibility: hidden; font-weight: 600; }
+/* arriba, el texto va con el color pleno (sólo el ícono va apagado); en el
+   panel del celular, todo el link apagado (medido en Streamlit) */
+.barra nav.arriba a span { color: var(--texto); }
 .barra a:hover { background: rgba(157,166,185,.15); }
 .barra a[aria-current="page"] { background: rgba(157,166,185,.25); color: var(--texto); font-weight: 600; }
-.barra a[aria-current="page"] svg { fill: var(--texto); }
+/* el ícono del elegido, en negrita como en Streamlit (el navegador engrosa
+   la letra de íconos con font-weight 600: acá, un borde del mismo color) */
+.barra a[aria-current="page"] svg { fill: var(--texto); stroke: var(--texto); stroke-width: 40; stroke-linejoin: round; }
 .barra a:focus-visible { outline: 2px solid var(--acento); outline-offset: 1px; }
+
+/* Celular y tablet chica (hasta 767px, como Streamlit): los links quedan
+   detrás del botón », que abre un panel desde la izquierda. */
+.barra .menu { display: none; width: 28px; height: 28px; margin: 0 2px; padding: 2px; border: 0; border-radius: 8px;
+  background: none; color: var(--texto); cursor: pointer; }
+.barra .menu svg { width: 24px; height: 24px; fill: rgba(232,234,240,.6); display: block; }
+.barra .menu:hover { background: rgba(157,166,185,.15); }
+.barra .menu:focus-visible { outline: 2px solid var(--acento); }
+.lateral { display: none; position: fixed; top: 0; left: 0; bottom: 0; width: 300px; padding: 0 30px; z-index: 999991;
+  background: var(--sup); transform: translateX(-300px); transition: transform .3s; overflow-y: auto; }
+.lateral.abierto { transform: none; box-shadow: rgba(0,0,0,.4) -32px 0 32px 32px; }
+.lateral .cab { height: 60px; margin-bottom: 16px; display: flex; align-items: center; justify-content: flex-end; }
+.lateral nav { display: flex; flex-direction: column; gap: 2px; }
+.lateral a { width: 100%; font-family: var(--st); font-size: 14px; }
+@media (max-width: 767.98px) {
+  .barra .menu, .lateral { display: block; }
+  .barra nav.arriba { display: none; }
+}
 
 /* ── Página: una columna de piezas separadas 1rem, como Streamlit ───────── */
 /* Usa todo el ancho de la pantalla (notebook o monitor), con márgenes que
