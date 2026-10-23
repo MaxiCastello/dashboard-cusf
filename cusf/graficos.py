@@ -78,12 +78,15 @@ def lineas(x, series, alto=300, por_ciento=False, referencias=()):
                         marker=dict(size=9, color=color, line=dict(color="#0a0c0f", width=2)),
                         customdata=hov or ys,
                         hovertemplate="%{x}<br>" + nombre + ": %{customdata}<extra></extra>")
-    for valor, txt, color in referencias:
+    # el rótulo de la primera referencia a la izquierda y el de la segunda a la
+    # derecha: si las dos líneas quedan cerca, los textos no se pisan
+    for i, (valor, txt, color) in enumerate(referencias):
         if valor is None:
             continue
+        lado = "left" if i == 0 else "right"
         fig.add_hline(y=valor, line=dict(color=color, width=1.5, dash="dot"), opacity=.7,
-                      annotation=dict(text=txt, font=dict(size=11, color=color), xanchor="left"),
-                      annotation_position="top left")
+                      annotation=dict(text=txt, font=dict(size=11, color=color), xanchor=lado),
+                      annotation_position="top " + lado)
     if por_ciento:
         fig.update_layout(yaxis=dict(range=[0, 108], ticksuffix="%"))
     fig.update_layout(xaxis=dict(showgrid=False), legend=dict(y=1.02, yanchor="bottom", x=0),

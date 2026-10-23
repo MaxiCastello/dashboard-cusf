@@ -29,7 +29,8 @@ def etiqueta(p, corta=False):
         f = f"{int(d)} {MESES[int(m)]}"
     else:
         f = p.get("fecha_txt", "")
-    if corta:
+    # la planilla 2025 no tiene el tanteo de cada partido: no se inventa un 0–0
+    if corta or p.get("fuente") == "planilla":
         return f"{f} · {p['rival']}"
     return f"{f} · UNI {p['score_uni']}–{p['score_rival']} {p['rival']}"
 

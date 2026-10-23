@@ -221,14 +221,29 @@ def _nro_fecha(f):
     return int(m.group(1)) if m else 99
 
 
+# Los partidos de la Copa Santa Fe vienen como Tackles_Fecha<RIVAL>_CSF.xlsx:
+# "CSF" es el torneo, no el rival (el rival va donde los demás tienen el número).
+TORNEOS = {"CSF": "Copa Santa Fe"}
+
+
+def _partes_archivo(f):
+    """(fecha, rival) a partir del nombre: Tackles_Fecha12_Caranchos.xlsx ->
+    ("Fecha 12", "Caranchos"); Tackles_FechaQRC_CSF.xlsx -> ("Copa Santa Fe", "QRC")."""
+    base = os.path.splitext(os.path.basename(f))[0]
+    m = re.search(r"Fecha(\w+?)_", base)
+    fecha = ("Fecha " + m.group(1)) if m else ""
+    rival = base.split("_")[-1] if "_" in base else base
+    if rival in TORNEOS and m and not m.group(1).isdigit():
+        return TORNEOS[rival], m.group(1)
+    return fecha, rival
+
+
 def _fecha_archivo(f):
-    m = re.search(r"Fecha(\w+?)_", os.path.basename(f))
-    return ("Fecha " + m.group(1)) if m else ""
+    return _partes_archivo(f)[0]
 
 
 def _rival_archivo(f):
-    base = os.path.splitext(os.path.basename(f))[0]
-    return base.split("_")[-1] if "_" in base else base
+    return _partes_archivo(f)[1]
 
 
 # ── Armar una temporada ──────────────────────────────────────────────────────
