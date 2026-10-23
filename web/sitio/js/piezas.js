@@ -5,7 +5,7 @@
 // escapa, salvo que ya sea HTML armado con html`...`. Así un nombre cargado
 // con etiquetas se ve como texto y no se ejecuta (el lint sólo deja poner
 // en innerHTML lo que sale de html`...`).
-import { esc, pct } from "./formato.js";
+import { esc, pct, redondear } from "./formato.js";
 import { str } from "./python.js";
 import { SUP2, TEXTO } from "./tema.js";
 
@@ -54,4 +54,10 @@ export function anillos(items, columnas = null) {
 export function tabla(columnas, filas) {
   return html`<div class="tabla-scroll"><table class="t"><thead><tr>${columnas.map((c) => html`<th>${str(c)}</th>`)}</tr></thead><tbody>${
     filas.map((f) => html`<tr>${f.map((v) => html`<td>${str(v)}</td>`)}</tr>`)}</tbody></table></div>`;
+}
+
+// El mismo color, mezclado con blanco (para el anillo de afuera de una torta).
+export function aclarar(color, f = 0.45) {
+  const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(color.slice(i, i + 2), 16));
+  return `#${[r, g, b].map((c) => redondear(c + (255 - c) * f).toString(16).padStart(2, "0")).join("")}`;
 }

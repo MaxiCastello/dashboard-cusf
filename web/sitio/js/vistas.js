@@ -7,13 +7,17 @@
 // Criterio de los números: primero "X de Y" y después el porcentaje, sin
 // jerga y sin decir si estuvo bien o mal.
 import { etiqueta, resultado, sumar, tacklesTemporada } from "./calculos.js";
-import { conSigno, pct, unDecimal, xdey } from "./formato.js";
-import { acumulado, chances22, dona, lineas, mapaCalor, mariposa, pesas, piruletas } from "./graficos.js";
-import { anillos, html, kpis, tabla } from "./piezas.js";
+import { coma, conSigno, pct, unDecimal, xdey } from "./formato.js";
+import { acumulado, barras, chances22, dona, lineas, mapaCalor, mariposa, pesas, piruletas, sol } from "./graficos.js";
+import { aclarar, anillos, html, kpis, tabla } from "./piezas.js";
+import { MIN_AMARILLA, MIN_ROJA, minutosConUnoMenos } from "./objetivos.js";
 import { capitalizar, enteroDeTexto, o, soloCifras } from "./python.js";
 import { ACENTO, AVISO, MAL, NEUTRO, RIVAL, UNI } from "./tema.js";
 
 // ── Lo que usan varias pestañas ─────────────────────────────────────────────
+
+// Situaciones de los penales: su color (Map: la situación viene de los datos)
+const SIT_COLOR = new Map([["Scrum", ACENTO], ["Line", "#9fb8ff"], ["Ruck", UNI], ["Maul", "#7be0a5"], ["Juego", AVISO]]);
 
 // Formas de anotar: el mismo color en la torta de UNI y en la del rival
 const FORMAS = [["Tries", 5, "tries", UNI], ["Tries penales", 7, "triesp", "#7be0a5"], ["Conversiones", 2, "conv", ACENTO],
@@ -265,5 +269,95 @@ export function formaciones(lz, t) {
     const col = celdas.size ? c2 : lz.contenedor();
     col.titulo("Knock-ons");
     col.grafico(dona(["UNI", "Rival"], [k.uni, k.rival], [UNI, RIVAL], k.uni + k.rival, "knock-ons", 260));
+  }
+}
+
+// ── Penales ─────────────────────────────────────────────────────────────────
+
+export function penales(lz, t) {
+  const tot = t.totales, n = Math.max(t.n_partidos, 1);
+  const pu = pen(tot), pr = pen(tot, "rival");
+  const items = [[pu, "Cometidos por UNI", UNI], [pr, "Cometidos por el rival", RIVAL]];
+  if (n > 1) items.splice(1, 0, [unDecimal(pu / n), "UNI por partido", UNI]);
+  lz.html(kpis(items));
+  if (!tot.penales.length) nota(lz, "No hay penales cargados.");
+  else penalesDetalle(lz, t, tot.penales);
+  tarjetas(lz, t);
+}
+
+// Tarjetas y el tiempo jugado con uno menos (UNI y el rival).
+function tarjetas(lz, t) {
+  const tj = t.totales.tarjetas, ps = t.partidos, n = Math.max(t.n_partidos, 1);
+  const mu = minutosConUnoMenos(tj, "u"), mr = minutosConUnoMenos(tj, "r");
+  lz.titulo("Tarjetas");
+  if (t.planilla) {   // sin el dato no es cero: no se muestran ceros
+    nota(lz, "La planilla 2025 no tiene las tarjetas.");
+    return;
+  }
+  const items = [[tj.am_u, "Amarillas UNI", AVISO], [tj.ro_u, "Rojas UNI", MAL]];
+  if (n > 1) items.push([coma((tj.am_u + tj.ro_u) / n), "Tarjetas UNI por partido", null]);
+  items.push([`${mu}'`, "Minutos UNI con uno menos", UNI], [`${mr}'`, "Minutos del rival con uno menos", RIVAL]);
+  lz.html(kpis(items));
+  if (ps.length > 1 && ps.some((p) => ["u", "r"].some((l) => minutosConUnoMenos(p.tarjetas, l)))) {
+    const hov = (p, l) => `${minutosConUnoMenos(p.tarjetas, l)} min · ${p.tarjetas[`am_${l}`]} amarilla(s), ${p.tarjetas[`ro_${l}`]} roja(s)`;
+    lz.titulo("Minutos con uno menos, partido a partido");
+    lz.grafico(barras(ejex(ps), [
+      ["UNI", ps.map((p) => minutosConUnoMenos(p.tarjetas, "u")), UNI, ps.map((p) => hov(p, "u"))],
+      ["Rival", ps.map((p) => minutosConUnoMenos(p.tarjetas, "r")), RIVAL, ps.map((p) => hov(p, "r"))]],
+    { tituloY: "Minutos", sufijo: "'" }));
+  }
+  nota(lz, `Cada amarilla son ${MIN_AMARILLA} minutos afuera y cada roja ${MIN_ROJA} ` +
+    "(la roja de 20 minutos: después entra un reemplazo; si la roja es definitiva, el equipo " +
+    `sigue con uno menos hasta el final y acá igual se cuentan ${MIN_ROJA}). ` +
+    "Objetivo: 0 tarjetas por partido.");
+}
+
+function penalesDetalle(lz, t, pens) {
+  // por situación, en el orden en que aparecen; de más a menos
+  const sits = new Map();
+  for (const f of pens) {
+    if (!sits.has(f.situacion)) sits.set(f.situacion, [0, 0]);
+    sits.get(f.situacion)[0] += f.uni;
+    sits.get(f.situacion)[1] += f.rival;
+  }
+  const total = (s) => sits.get(s)[0] + sits.get(s)[1];
+  const orden = [...sits.keys()].sort((a, b) => total(b) - total(a));
+  const [c1, c2] = lz.columnas(2, "large");
+  c1.titulo("Dónde se cometen");
+  c1.grafico(mariposa(orden, orden.map((s) => sits.get(s)[0]), orden.map((s) => sits.get(s)[1])));
+  nota(c1, "UNI a la izquierda, el rival a la derecha.");
+  const conPer = t.partidos.filter((p) => p.periodos);
+  if (conPer.length) {
+    c1.titulo("Por tiempo");
+    const a = (per, k) => conPer.reduce((s, p) => s + p.periodos[per][k], 0);
+    c1.grafico(mariposa(["1° tiempo", "2° tiempo"], [a("PT", "pen_u"), a("ST", "pen_u")], [a("PT", "pen_r"), a("ST", "pen_r")],
+      { alto: 160 }));
+    if (conPer.length < t.partidos.length) {
+      nota(c1, `Sólo los ${conPer.length} partidos cargados en Uni-Dat tienen el tiempo de cada penal.`);
+    }
+  }
+  c2.titulo("Los de UNI: situación y motivo");
+  const uni = pens.filter((f) => f.uni);
+  if (uni.length) {
+    const sitU = new Map();
+    for (const f of uni) sitU.set(f.situacion, (sitU.get(f.situacion) ?? 0) + f.uni);
+    const etq = [], pad = [], val = [], col = [];
+    for (const [s, v] of sitU) {
+      etq.push(s);
+      pad.push("");
+      val.push(v);
+      col.push(SIT_COLOR.get(s) ?? NEUTRO);
+    }
+    for (const f of uni) {
+      etq.push(f.motivo);
+      pad.push(f.situacion);
+      val.push(f.uni);
+      col.push(aclarar(SIT_COLOR.get(f.situacion) ?? NEUTRO));
+    }
+    c2.grafico(sol(etq, pad, val, col));
+    nota(c2, "Adentro, dónde; afuera, el motivo. Tocá una parte para abrirla.");
+    const mot = [...uni].sort((a, b) => b.uni - a.uni).slice(0, 10);
+    c2.desplegable("Ver la lista de motivos").html(tabla(["Motivo", "Situación", "UNI", "Rival"],
+      mot.map((f) => [f.motivo, f.situacion, f.uni, f.rival])));
   }
 }

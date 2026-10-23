@@ -10,6 +10,7 @@
 // (y anota lo mismo: las pruebas de pantalla lo leen).
 import { porcentajeCss } from "./formato.js";
 import { pestanas } from "./controles.js";
+import { CHEVRON_DER, FLECHA_ABAJO } from "./iconos.js";
 import { CONFIG, dibujar } from "./graficos.js";
 import { html, poner } from "./piezas.js";
 
@@ -120,7 +121,8 @@ export class EnPagina extends Registro {
       pendientes.add(p);
       p.finally(() => pendientes.delete(p));
     };
-    const oculto = div.closest("[hidden]");   // en una pestaña interna que no se ve
+    // en una pestaña interna que no se ve, o en un desplegable cerrado
+    const oculto = div.closest("[hidden], details:not([open])");
     if (oculto) esperando.set(oculto, [...(esperando.get(oculto) ?? []), ahora]);
     else ahora();
   }
@@ -158,7 +160,17 @@ export class EnPagina extends Registro {
     return [...cont.querySelectorAll('[role="tabpanel"]')].map((p) => new EnPagina(p, this.llamadas));
   }
 
-  desplegable() {
-    throw new Error("EnPagina.desplegable(): todavía no");
+  // st.expander(rotulo): cerrado al empezar, como en Streamlit
+  desplegable(rotulo) {
+    this.anotar({ f: "expander", args: [rotulo], key: null, type: null });
+    const d = this.poner(html`<details class="expander"><summary><span class="ico cerrado">${CHEVRON_DER}</span><span class="ico abierto">${
+      FLECHA_ABAJO}</span><span class="rot">${rotulo}</span></summary><div class="cuerpo"></div></details>`);
+    // un gráfico adentro, cerrado, espera a que se lo abra (como en una pestaña escondida)
+    d.addEventListener("toggle", () => {
+      if (!d.open) return;
+      for (const f of esperando.get(d) ?? []) f();
+      esperando.delete(d);
+    });
+    return new EnPagina(d.querySelector(".cuerpo"), this.llamadas);
   }
 }

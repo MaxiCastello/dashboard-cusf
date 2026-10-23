@@ -16,7 +16,7 @@ import { leerJson } from "../sitio/js/python.js";
 import * as V from "../sitio/js/vistas.js";
 
 // las pestañas de la temporada ya pasadas a la página
-export const SECCIONES_TEMPORADA = { resumen: V.resumen, evolucion: V.evolucion, puntos: V.puntos, formaciones: V.formaciones };
+export const SECCIONES_TEMPORADA = { resumen: V.resumen, evolucion: V.evolucion, puntos: V.puntos, formaciones: V.formaciones, penales: V.penales };
 
 export function dibujarTodo(unidat, manuales, planilla = false) {
   const out = [];

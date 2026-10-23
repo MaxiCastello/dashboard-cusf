@@ -247,3 +247,30 @@ export function mapaCalor(filas, columnas, ganados, tirados, alto = null) {
   const layout = { xaxis: { side: "top", showgrid: false }, yaxis: { autorange: "reversed", showgrid: false }, margin: { t: 30 } };
   return grafico({ data, layout }, alto || 70 + 52 * filas.length);
 }
+
+// Barras verticales lado a lado, una tanda por partido.
+// series: [[nombre, valores, color, textos del hover]]
+export function barras(x, series, { alto = 300, tituloY = "", sufijo = "" } = {}) {
+  const data = series.map(([nombre, ys, color, hov]) => ({
+    cliponaxis: false, customdata: hov, hovertemplate: "%{x}<br>" + nombre + ": %{customdata}<extra></extra>",
+    marker: { color }, name: nombre, text: ys.map((v) => (v ? `${str(v)}${sufijo}` : "")),
+    textfont: { color: APAGADO, family: "DM Mono, monospace", size: 11 }, textposition: "outside", x, y: ys, type: "bar",
+  }));
+  const tope = Math.max(...series.flatMap(([, ys]) => ys), 1);
+  const layout = {
+    barmode: "group", bargap: 0.3, xaxis: { showgrid: false }, yaxis: { title: { text: tituloY }, range: [0, tope * 1.2] },
+    legend: { y: 1.02, yanchor: "bottom", x: 0 }, margin: { t: 34 },
+  };
+  return grafico({ data, layout }, alto);
+}
+
+// Torta en dos anillos: adentro la situación, afuera el motivo.
+export function sol(etiquetas, padres, valores, colores, alto = 380) {
+  const data = [{
+    branchvalues: "total", hovertemplate: "%{label}: %{value}<extra></extra>",
+    ids: etiquetas.map((e, i) => (padres[i] ? `${padres[i]}/${e}` : e)), insidetextorientation: "radial", labels: etiquetas,
+    marker: { colors: colores, line: { color: "#0a0c0f", width: 2 } }, parents: padres,
+    textfont: { color: "#0a0c0f", size: 12 }, values: valores, type: "sunburst",
+  }];
+  return grafico({ data, layout: { margin: { t: 8, b: 8, l: 8, r: 8 } } }, alto);
+}

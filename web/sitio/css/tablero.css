@@ -19,8 +19,9 @@ body { margin: 0; background: var(--bg); color: var(--texto);
 p { margin: 0; }
 
 /* ── Barra de arriba (Tablero / Cargar partido) ─────────────────────────── */
-.barra { position: absolute; top: 0; left: 0; right: 0; height: 60px; background: var(--bg);
-  display: flex; align-items: center; padding: 0 16px; gap: 4px; z-index: 2; }
+/* fija arriba: en Streamlit la barra no se va al bajar (el contenido corre por debajo) */
+.barra { position: fixed; top: 0; left: 0; right: 0; height: 60px; background: var(--bg);
+  display: flex; align-items: center; padding: 0 16px; gap: 4px; z-index: 999990; }
 .barra nav.arriba { display: flex; gap: 4px; }
 .barra a { display: inline-flex; align-items: center; gap: 8px; height: 28px; margin: 2px 0; padding: 0 8px;
   border-radius: 6px; font-size: 14px; line-height: 28px; color: rgba(232,234,240,.75); text-decoration: none; }
@@ -149,6 +150,20 @@ h3 { font-size: 1.35rem; line-height: 1.2; letter-spacing: -0.005em; margin-top:
 .pestanas .flecha.izq { left: 0; justify-items: start; background: linear-gradient(to left, rgba(10,12,15,0), var(--bg) 60%); }
 .panel { padding-top: calc(1rem + 2px); display: flex; flex-direction: column; gap: 1rem; }
 .bloque { display: flex; flex-direction: column; gap: 1rem; }
+
+/* ── Desplegable (st.expander), medido en Streamlit ──────────────────────── */
+.expander { border: 1px solid rgba(232,234,240,.2); border-radius: 8px; }
+.expander summary { list-style: none; display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 4px 12px;
+  border-radius: 8px; cursor: pointer; font-family: var(--st); font-size: 16px; line-height: 25.6px; }
+.expander summary::-webkit-details-marker { display: none; }
+.expander summary:hover, .expander[open] summary { background: rgba(157,166,185,.15); }
+.expander[open] summary { border-radius: 8px 8px 0 0; }
+.expander summary:focus-visible { outline: 2px solid var(--acento); outline-offset: -2px; }
+.expander .ico { display: flex; width: 20px; height: 20px; flex: none; }
+.expander .ico svg { width: 20px; height: 20px; fill: currentColor; }
+.expander .ico.abierto, .expander[open] .ico.cerrado { display: none; }
+.expander[open] .ico.abierto { display: flex; }
+.expander .cuerpo { padding: 16px; border-top: 1px solid rgba(232,234,240,.2); display: flex; flex-direction: column; gap: 1rem; }
 
 .nota { font-size:.78rem; color:var(--apagado); margin:4px 0 10px; font-family: var(--st); line-height: 1.6; }
 
