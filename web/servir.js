@@ -61,6 +61,14 @@ function publicable(archivo) {
     realpathSync.native(archivo) === archivo && !["_headers", "_redirects"].includes(basename(archivo));
 }
 
+function publicableSinError(archivo) {
+  try {
+    return publicable(archivo);
+  } catch {
+    return false;
+  }
+}
+
 createServer((pedido, resp) => {
   let reglas;
   try {
@@ -73,6 +81,8 @@ createServer((pedido, resp) => {
   try {
     ruta = decodeURIComponent(new URL(pedido.url, "http://x").pathname);
     if (ruta.endsWith("/")) ruta += "index.html";
+    // como Cloudflare Pages: /cargar sirve cargar.html
+    else if (!extname(ruta) && publicableSinError(normalize(join(RAIZ, ruta + ".html")))) ruta += ".html";
     archivo = normalize(join(RAIZ, ruta));
     ok = publicable(archivo);
   } catch {   // %zz en la dirección, o el archivo no existe

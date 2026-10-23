@@ -6,11 +6,12 @@ import { html, poner } from "./piezas.js";
 
 const $ = (id) => document.getElementById(id);
 
-// La barra de arriba: la página actual, resaltada.
+// La barra de arriba: la página actual, resaltada. "cargar" y no
+// "cargar.html": Cloudflare sirve cargar.html en /cargar (y redirige el .html).
 export function barra(actual) {
   const link = (href, icono, txt, cual) =>
     html`<a href="${href}"${cual === actual ? html` aria-current="page"` : ""}>${icono}<span data-texto="${txt}">${txt}</span></a>`;
-  poner($("barra"), html`<nav aria-label="Páginas">${link("./", INSIGHTS, "Tablero", "tablero")}${link("cargar.html", EDIT_NOTE,
+  poner($("barra"), html`<nav aria-label="Páginas">${link("./", INSIGHTS, "Tablero", "tablero")}${link("cargar", EDIT_NOTE,
     "Cargar partido", "cargar")}</nav>`);
 }
 
