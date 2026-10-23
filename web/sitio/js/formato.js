@@ -53,6 +53,11 @@ export const coma = (x) => unDecimal(x).replaceAll(",0", "");
 // f"{n:+d}": "+5", "-3", "+0".
 export const conSigno = (n) => (n < 0 ? String(n) : `+${n}`);
 
+// El ancho de una columna como lo escribe Streamlit en su CSS: el porcentaje
+// con 4 decimales (1/3 -> 33.3333). No es una cuenta del Python: copia a
+// Streamlit (así el ancho redondea igual).
+export const porcentajeCss = (f) => Number((f * 100).toFixed(4));
+
 // html.escape(x, quote=True) de Python.
 const ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#x27;" };
 export function esc(x) {

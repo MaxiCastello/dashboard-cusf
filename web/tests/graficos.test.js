@@ -70,7 +70,7 @@ test("dibujar(): a Plotly le llega la figura con la letra que pone Streamlit, el
     assert.equal(elPlotly, el);
     assert.deepEqual(data, copia.data);
     assert.deepEqual(layout, { ...copia.layout, font: FUENTE_STREAMLIT, template: TEMA });
-    assert.deepEqual(config, { displayModeBar: false, scrollZoom: false, responsive: true });
+    assert.deepEqual(config, { displayModeBar: false, scrollZoom: false });   // el ancho lo pone dibujar() (como Streamlit)
     assert.equal(dibujadas.get(el), fig);
     assert.deepEqual(fig, copia);                       // Plotly recibe copias
     assert.notEqual(layout.template, TEMA);             // ni el tema compartido

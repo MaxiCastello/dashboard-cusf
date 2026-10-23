@@ -15,14 +15,19 @@
 // FASE 3: el contenido de las pestañas (fases 4 y 5) todavía no está.
 import { ANIO_PLANILLA, aniosDisponibles, categoriasDe, etiqueta, temporada } from "./calculos.js";
 import { apagarPestanas, desplegable, pestanas, radios } from "./controles.js";
+import { EnPagina } from "./lienzo.js";
 import { encabezado } from "./marco.js";
 import { html, poner } from "./piezas.js";
 import { PLANILLA_2025 } from "./planilla2025.js";
 import { str } from "./python.js";
+import * as V from "./vistas.js";
 
 const $ = (id) => document.getElementById(id);
 
 export const PESTANAS_TEMPORADA = ["Resumen", "Partidos", "Puntos", "Formaciones", "Penales", "Tackles", "Objetivos", "Informe"];
+// Las pestañas de la temporada ya pasadas (fase 4), en el orden de arriba.
+const SECCIONES_TEMPORADA = [V.resumen];
+
 export const PESTANAS_PARTIDO = ["Resumen", "1° vs 2° tiempo", "Puntos", "Formaciones", "Penales", "Tackles", "Objetivos",
   "Informe"];
 
@@ -60,7 +65,9 @@ export function tablero({ partidos, errorBase = null }) {
 
   function armar() {
     let t, sub;
-    $("filtro-cat").hidden = estado.anio === ANIO_PLANILLA;
+    // en 2025 la columna de Categoría queda vacía, pero queda (como en
+    // Streamlit: en el celular, apilada, deja su espacio de 1rem)
+    $("filtro-cat").classList.toggle("vacia", estado.anio === ANIO_PLANILLA);
     if (estado.anio === ANIO_PLANILLA) {
       t = PLANILLA_2025;
       sub = "Temporada 2025 · planilla";
@@ -102,7 +109,11 @@ export function tablero({ partidos, errorBase = null }) {
         poner(cont, html`<div class="aviso info" role="status">Todavía no hay partidos de esta temporada.</div>`);
         return;
       }
-      pestanas(cont, PESTANAS_TEMPORADA, (i, panel) => enPreparacion(panel, PESTANAS_TEMPORADA[i]));
+      pestanas(cont, PESTANAS_TEMPORADA, seguro((i, panel) => {
+        const f = SECCIONES_TEMPORADA[i];
+        if (f) f(new EnPagina(panel), t);
+        else enPreparacion(panel, PESTANAS_TEMPORADA[i]);
+      }));
       return;
     }
     const p = porIdDe(t).get(estado.ver);

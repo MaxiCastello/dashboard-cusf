@@ -4,10 +4,11 @@
 //
 // Los textos que llegan acá (rival, jugador, motivo) ya pasaron por
 // texto(): sin < > (plotly interpreta algunas etiquetas HTML).
-import { APAGADO, BORDE, RIVAL, TEMA, TEXTO, UNI } from "./tema.js";
+import { APAGADO, BORDE, RIVAL, SUP2, TEMA, TEXTO, UNI } from "./tema.js";
 
 const BEBAS = "Bebas Neue, Arial Narrow, sans-serif";
-const CONFIG = { displayModeBar: false, scrollZoom: false };
+// la config de grafico() de estilo.py (sin barra de botones, sin zoom con la rueda)
+export const CONFIG = { displayModeBar: false, scrollZoom: false };
 
 // grafico() de estilo.py: el alto y el fondo transparente.
 function grafico(fig, alto = 320) {
@@ -22,19 +23,44 @@ function grafico(fig, alto = 320) {
 export const dibujadas = new WeakMap();
 
 // Lo que Streamlit le agrega a cada figura al dibujarla (st.plotly_chart con
-// theme=None, medido en la fase 3): la letra y el color de sus textos. Por
-// eso los gráficos del tablero salen en Source Sans y no en la DM Sans del
-// tema (es la misma letra que --st de tablero.css). El ancho, Streamlit lo
-// pone a mano; acá lo hace `responsive`.
+// theme=None, medido en las fases 3 y 4):
+// - la letra y el color de sus textos: por eso los gráficos del tablero salen
+//   en Source Sans y no en la DM Sans del tema (la misma letra que --st de
+//   tablero.css);
+// - el ancho exacto del lugar (824,05px, no 824): si Plotly lo calcula solo
+//   lo redondea y el gráfico sale corrido medio píxel. Si el lugar cambia de
+//   ancho (se gira el celular), se vuelve a poner.
 export const FUENTE_STREAMLIT = { color: TEXTO, family: '"Source Sans", sans-serif, "Source Sans", sans-serif' };
+
+// (0 = todavía no tiene lugar: entonces Plotly lo calcula solo)
+const ancho = (el) => {
+  const w = el.getBoundingClientRect?.().width;
+  return w > 0 ? w : null;
+};
+
+// Uno solo para todos los gráficos; uno que ya no está en la página deja de mirarse.
+let mirar = null;
+function seguirAncho(el) {
+  mirar ??= new ResizeObserver((cambios) => {
+    for (const { target } of cambios) {
+      if (!target.isConnected) mirar.unobserve(target);
+      else if (ancho(target) && ancho(target) !== target._fullLayout?.width) window.Plotly.relayout(target, { width: ancho(target) });
+    }
+  });
+  mirar.observe(el);
+}
 
 // Plotly guarda y cambia lo que recibe: le llega una copia, así la figura
 // sigue siendo la que se comparó en las pruebas.
 export function dibujar(el, fig) {
   dibujadas.set(el, fig);
   const { data, layout } = structuredClone(fig);
-  return window.Plotly.newPlot(el, data, { ...layout, font: { ...FUENTE_STREAMLIT, ...layout.font }, template: structuredClone(TEMA) },
-    { ...CONFIG, responsive: true });
+  const w = ancho(el);
+  const hecho = window.Plotly.newPlot(el, data, {
+    ...layout, ...(w ? { width: w } : {}), font: { ...FUENTE_STREAMLIT, ...layout.font }, template: structuredClone(TEMA),
+  }, { ...CONFIG });
+  if (w && typeof ResizeObserver !== "undefined") hecho.then(() => seguirAncho(el));
+  return hecho;
 }
 
 // Torta con agujero; en el medio, el total o lo principal. null si no hay
@@ -91,4 +117,46 @@ export function pesas(etiquetas, a, b, { nombres = ["UNI", "Rival"], colores = [
   };
   // `alto or ...` en Python: un alto 0 también toma el de la cuenta
   return grafico({ data, layout }, alto || 80 + 38 * etiquetas.length);
+}
+
+// Puntos a favor y en contra sumados partido a partido (áreas). Al pasar por
+// un punto: el partido, lo que sumó ese partido y el total.
+export function acumulado(x, uni, rival, alto = 300) {
+  const suma = (v) => {
+    let s = 0;
+    return v.map((n) => (s += n));
+  };
+  const data = [["En contra", rival, RIVAL, "rgba(255,152,0,.12)"], ["A favor", uni, UNI, "rgba(0,200,83,.16)"]]
+    .map(([nombre, pts, color, relleno]) => ({
+      customdata: pts, fill: "tozeroy", fillcolor: relleno,
+      hovertemplate: nombre + ": +%{customdata} en el partido · total %{y}<extra></extra>",
+      line: { color, width: 3 }, marker: { color, size: 7 }, mode: "lines+markers", name: nombre,
+      x, y: suma(pts), type: "scatter",
+    }));
+  // un solo cartel por partido, con a favor y en contra (el título es el partido)
+  const layout = {
+    xaxis: { showgrid: false }, legend: { y: 1.02, yanchor: "bottom", x: 0, traceorder: "reversed" },
+    margin: { t: 34 }, hovermode: "x unified",
+  };
+  return grafico({ data, layout }, alto);
+}
+
+// Ranking horizontal: palito y punto, más liviano que una barra llena.
+export function piruletas(etiquetas, valores, { color = UNI, alto = null, sufijo = "" } = {}) {
+  const data = etiquetas.map((y, i) => ({
+    hoverinfo: "skip", line: { color: SUP2, width: 4 }, mode: "lines", showlegend: false,
+    x: [0, valores[i]], y: [y, y], type: "scatter",
+  }));
+  data.push({
+    cliponaxis: false, hovertemplate: "%{y}: %{x}<extra></extra>", marker: { color, size: 14 },
+    mode: "markers+text", showlegend: false, text: valores.map((v) => `${v}${sufijo}`),
+    textfont: { family: "DM Mono, monospace", size: 12 }, textposition: "middle right",
+    x: valores, y: etiquetas, type: "scatter",
+  });
+  const layout = {
+    xaxis: { visible: false, range: [0, Math.max(...valores, 1) * 1.18] },
+    yaxis: { autorange: "reversed", showgrid: false }, margin: { r: 30 },
+  };
+  // `alto or ...` en Python: un alto 0 también toma el de la cuenta
+  return grafico({ data, layout }, alto || 50 + 34 * etiquetas.length);
 }

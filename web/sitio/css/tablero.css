@@ -65,20 +65,22 @@ p { margin: 0; }
 .md, .md p, .rotulo, .aviso, select { font-family: var(--st); }
 h1, h2, h3 { font-family: 'Bebas Neue', 'Arial Narrow', sans-serif; font-weight: 400; margin: 0; }
 h3 { font-size: 1.35rem; line-height: 1.2; letter-spacing: -0.005em; margin-top: .6rem; padding: .75rem 0 1rem; }
+/* Cada markdown de Streamlit (un título ### o un pedazo de HTML) va en una
+   caja con margin-bottom -1rem (para comerse el margen de abajo de un
+   párrafo): lo que sigue queda 1rem más arriba. */
+.panel h3, .columnas h3, .bloque h3, .md { margin-bottom: -1rem; }
 
-/* Columnas como st.columns: cada una mide su parte del ancho menos una
-   parte igual del espacio entre columnas (así lo hace Streamlit: con dos
-   columnas, cada una pierde la mitad del espacio); en la tablet parada van
-   una abajo de la otra. "chico" = el espacio de los filtros (1rem), el
-   resto 4rem (gap="large"). */
+/* Columnas como st.columns (Streamlit 1.55): cada una arranca en su parte
+   del ancho (con 4 decimales) menos el espacio entre columnas, y crecen
+   todas por igual hasta llenar la fila. En la tablet parada van una abajo
+   de la otra. "chico" = el espacio de los filtros (1rem), el resto 4rem
+   (gap="large"). El ancho llega en --ancho (lienzo.js) o por la clase. */
 .columnas { display: flex; gap: 4rem; }
 .columnas.chico { gap: 1rem; }
-.columnas > * { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
-.columnas.c-1-1 > * { width: calc(50% - 2rem); }
-.columnas.c-1-2 > :first-child { width: calc(33.3333% - 2rem); }
-.columnas.c-1-2 > :last-child { width: calc(66.6667% - 2rem); }
-.columnas.chico.c-1-2 > :first-child { width: calc(33.3333% - .5rem); }
-.columnas.chico.c-1-2 > :last-child { width: calc(66.6667% - .5rem); }
+.columnas > * { display: flex; flex-direction: column; gap: 1rem; min-width: 0;
+  width: var(--ancho, auto); flex: 1 1 var(--ancho, auto); }
+.columnas.chico.c-1-2 > :first-child { --ancho: calc(33.3333% - 1rem); }
+.columnas.chico.c-1-2 > :last-child { --ancho: calc(66.6667% - 1rem); }
 
 /* ── Encabezado ──────────────────────────────────────────────────────────── */
 /* margin-bottom -10px: en Streamlit el encabezado ocupa 44px (el escudo se
@@ -98,6 +100,7 @@ h3 { font-size: 1.35rem; line-height: 1.2; letter-spacing: -0.005em; margin-top:
 /* el rótulo ocupa su texto (22,4px) y el renglón 24px + 4px hasta el control */
 .rotulo { display: block; width: fit-content; font-size: 14px; line-height: 22.4px; margin-bottom: 5.6px; }
 .columnas > .filtro { gap: 0; }
+.filtro.vacia > * { display: none; }
 
 /* ── Radios (Temporada, Categoría) ───────────────────────────────────────── */
 .radios { display: flex; flex-wrap: wrap; align-items: center; min-height: 40px; }
@@ -144,7 +147,8 @@ h3 { font-size: 1.35rem; line-height: 1.2; letter-spacing: -0.005em; margin-top:
 .pestanas .flecha svg { width: 24px; height: 24px; fill: currentColor; }
 .pestanas .flecha.der { right: 0; justify-items: end; background: linear-gradient(to right, rgba(10,12,15,0), var(--bg) 60%); }
 .pestanas .flecha.izq { left: 0; justify-items: start; background: linear-gradient(to left, rgba(10,12,15,0), var(--bg) 60%); }
-.panel { padding-top: 1rem; display: flex; flex-direction: column; gap: 1rem; }
+.panel { padding-top: calc(1rem + 2px); display: flex; flex-direction: column; gap: 1rem; }
+.bloque { display: flex; flex-direction: column; gap: 1rem; }
 
 .nota { font-size:.78rem; color:var(--apagado); margin:4px 0 10px; font-family: var(--st); line-height: 1.6; }
 
@@ -172,8 +176,8 @@ h3 { font-size: 1.35rem; line-height: 1.2; letter-spacing: -0.005em; margin-top:
 /* Tablet parada: los gráficos lado a lado no entran, van uno abajo del otro */
 @media (max-width: 860px) {
   .columnas { flex-wrap: wrap; }
-  .columnas > *, .columnas.c-1-1 > *, .columnas.c-1-2 > :first-child, .columnas.c-1-2 > :last-child,
-  .columnas.chico.c-1-2 > :first-child, .columnas.chico.c-1-2 > :last-child { width: 100%; }
+  .columnas > *, .columnas.chico.c-1-2 > :first-child, .columnas.chico.c-1-2 > :last-child {
+    width: 100%; flex: 1 1 100%; }
   .kpis:has(> .kpi:nth-child(6)) { grid-template-columns:repeat(3,1fr); }
 }
 
