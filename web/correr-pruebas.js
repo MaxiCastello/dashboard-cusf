@@ -5,7 +5,6 @@
 // las salteadas, las pendientes ni los `describe`): una carpeta vacía, un
 // archivo vacío o uno con todo salteado no pueden dar verde.
 import { spawnSync } from "node:child_process";
-import { globSync } from "node:fs";
 import process from "node:process";
 
 const [mayor, menor] = process.versions.node.split(".").map(Number);
@@ -13,6 +12,9 @@ if (mayor < 22 || (mayor === 22 && menor < 8)) {
   console.error(`Hace falta Node 22.8 o más nuevo (está ${process.versions.node}).`);
   process.exit(1);
 }
+// globSync recién existe en Node 22: se importa después de mirar la versión
+// (con un import de arriba, un Node viejo fallaría antes, con un error en inglés).
+const { globSync } = await import("node:fs");
 
 const archivos = globSync("tests/**/*.test.js").sort();
 if (archivos.length === 0) {

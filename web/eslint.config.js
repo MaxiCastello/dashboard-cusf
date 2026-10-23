@@ -30,16 +30,16 @@ const SIN_DATOS = [
 ];
 
 export default [
-  { ignores: ["vendor/**", "node_modules/**"] },
+  { ignores: ["sitio/vendor/**", "node_modules/**"] },
   js.configs.recommended,
   {
     files: ["**/*.js"],
     plugins: { "no-unsanitized": nounsanitized },
     languageOptions: { ecmaVersion: 2024, sourceType: "module", globals: { ...globals.browser } },
     rules: {
-      // innerHTML / insertAdjacentHTML sólo con texto ya escapado (esc)
-      "no-unsanitized/method": "error",
-      "no-unsanitized/property": "error",
+      // innerHTML / insertAdjacentHTML sólo con lo que arma html`...` (piezas.js), que escapa cada valor
+      "no-unsanitized/method": ["error", { escape: { taggedTemplates: ["html"] } }],
+      "no-unsanitized/property": ["error", { escape: { taggedTemplates: ["html"] } }],
       // == mezcla null, undefined y 0: justo lo que no se puede confundir
       eqeqeq: ["error", "always"],
       "no-var": "error",
@@ -50,11 +50,11 @@ export default [
   },
   {
     // el único lugar donde se redondea y se da formato a los números (y se prueba contra Python)
-    files: ["js/formato.js"],
+    files: ["sitio/js/formato.js"],
     rules: { "no-restricted-syntax": ["error", ...FECHAS, ...SIN_DATOS] },
   },
   {
-    files: ["tests/**/*.js", "correr-pruebas.js", "eslint.config.js"],
+    files: ["tests/**/*.js", "correr-pruebas.js", "servir.js", "eslint.config.js"],
     languageOptions: { globals: { ...globals.node } },
   },
 ];

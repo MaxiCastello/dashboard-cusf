@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tablero · CUSF</title>
+<link rel="icon" href="img/icono.png">
+<link rel="stylesheet" href="css/fuentes.css">
+<link rel="stylesheet" href="css/tablero.css">
+<!-- defer: se ejecuta antes que el módulo (los dos esperan a que se lea la página, en este orden) -->
+<script src="vendor/plotly-strict-3.4.0.min.js" defer></script>
+<script type="module" src="js/inicio.js"></script>
+</head>
+<body>
+<main class="contenedor">
+  <div class="enc" id="enc"></div>
+  <p class="nota" id="cargando">Leyendo partidos…</p>
+  <div class="columnas c-1-2" id="columnas">
+    <section>
+      <h3>Resultados</h3>
+      <div id="g-resultados"></div>
+    </section>
+    <section>
+      <h3>Partido a partido</h3>
+      <div id="g-partidos"></div>
+    </section>
+  </div>
+  <h3>UNI en números</h3>
+  <div id="anillos"></div>
+</main>
+</body>
+</html>

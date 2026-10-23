@@ -1,0 +1,69 @@
+/* Aspecto del tablero: el CSS de cusf/estilo.py, más lo que en Streamlit
+   ponía el propio Streamlit (fondo, letra, espacios). Los colores son los de
+   Uni-Dat (js/tema.js). */
+:root {
+  --bg: #0a0c0f; --sup: #13161b; --sup2: #1c2028; --borde: #2a2f3a;
+  --texto: #e8eaf0; --apagado: #8b93a3; --acento: #1a6fd4;
+  --uni: #00c853;
+}
+* { box-sizing: border-box; }
+/* hidden tiene que ganarle a display:grid de .columnas */
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--texto);
+  font-family: 'DM Sans', system-ui, sans-serif; font-size: 16px; line-height: 1.6; }
+
+/* Usa todo el ancho de la pantalla (notebook o monitor), con márgenes que
+   crecen con ella; sólo en pantallas muy anchas se frena para que se lea. */
+.contenedor { max-width: 1760px; margin: 0 auto; padding: 1.5rem clamp(1rem, 3vw, 3.5rem) 4rem; }
+h1, h2, h3 { font-family: 'Bebas Neue', 'Arial Narrow', sans-serif; letter-spacing: 2px; font-weight: 400; }
+h3 { font-size: 1.35rem; line-height: 1.2; margin: .6rem 0 0; padding: .5rem 0 1rem; }
+
+/* Columnas como st.columns: lado a lado en la compu, apiladas en la tablet parada */
+.columnas { display: grid; gap: 3rem; }
+.columnas.c-1-2 { grid-template-columns: 1fr 2fr; }
+.columnas > * { min-width: 0; }
+
+/* Encabezado */
+.enc { display:flex; align-items:center; gap:14px; margin-bottom:6px; }
+.enc img { height:54px; }
+.enc .t { font-family:'Bebas Neue',sans-serif; font-size:2rem; letter-spacing:4px; line-height:1;
+  color:var(--texto); }
+.enc .s { font-family:'DM Mono',monospace; font-size:.72rem; letter-spacing:2px; color:var(--apagado); }
+
+/* Números grandes */
+.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin:6px 0 14px; }
+.kpi { background:var(--sup); border:1px solid var(--borde); border-radius:10px; padding:12px 10px; text-align:center; }
+.kpi .v { font-family:'Bebas Neue',sans-serif; font-size:2.3rem; line-height:1; letter-spacing:1px; }
+.kpi .l { font-family:'DM Mono',monospace; font-size:.68rem; letter-spacing:1.5px; color:var(--apagado);
+  margin-top:6px; text-transform:uppercase; }
+
+.nota { font-size:.78rem; color:var(--apagado); margin:4px 0 10px; }
+
+/* Anillos "X de Y" */
+.anillos { display:grid; grid-template-columns:repeat(auto-fit,minmax(132px,1fr)); gap:10px; margin:4px 0 14px; }
+.anillo { background:var(--sup); border:1px solid var(--borde); border-radius:12px; padding:14px 8px 12px; text-align:center; }
+.anillo .r { width:104px; height:104px; margin:0 auto; border-radius:50%; position:relative;
+  display:grid; place-items:center; }
+.anillo .r::before { content:""; position:absolute; inset:10px; border-radius:50%; background:var(--sup); }
+.anillo .c { position:relative; color:var(--texto); font-family:'Bebas Neue',sans-serif; font-size:1.75rem; line-height:1; letter-spacing:.5px; }
+.anillo .c .de { display:block; font-family:'DM Mono',monospace; font-size:.74rem; color:var(--texto); letter-spacing:0; margin-top:2px; }
+.anillo .c small { display:block; font-family:'DM Mono',monospace; font-size:.68rem; color:var(--apagado);
+  letter-spacing:1px; margin-top:3px; }
+.anillo .l { color:var(--texto); font-size:.8rem; margin-top:9px; line-height:1.25; }
+.anillo .l i { display:block; font-style:normal; font-family:'DM Mono',monospace; font-size:.64rem;
+  letter-spacing:1.2px; color:var(--apagado); text-transform:uppercase; }
+
+/* Tablet parada: los gráficos lado a lado no entran, van uno abajo del otro */
+@media (max-width: 860px) {
+  .columnas, .columnas.c-1-2 { grid-template-columns: 1fr; gap: 1rem; }
+  .kpis:has(> .kpi:nth-child(6)) { grid-template-columns:repeat(3,1fr); }
+}
+
+@media (max-width: 640px) {
+  .contenedor { padding-left:.8rem; padding-right:.8rem; }
+  .enc img { height:42px; } .enc .t { font-size:1.5rem; letter-spacing:3px; }
+  .kpis, .kpis:has(> .kpi:nth-child(6)) { grid-template-columns:repeat(2,1fr); }
+  .kpi .v { font-size:1.9rem; }
+  .anillos { grid-template-columns:repeat(2,1fr) !important; }
+}

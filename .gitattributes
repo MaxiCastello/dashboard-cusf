@@ -1,0 +1,3 @@
+# Archivos de terceros: tal cual vienen (sin tocar los saltos de línea),
+# para que sigan dando el mismo hash que el paquete oficial.
+web/sitio/vendor/** -text

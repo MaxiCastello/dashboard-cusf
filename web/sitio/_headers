@@ -1,0 +1,42 @@
+# Cabeceras de seguridad y de caché. Cloudflare Pages lee este archivo; en
+# local las aplica servir.js. Los partidos viven en Supabase: lo que cada uno
+# puede leer o escribir lo decide la base (RLS), no estas cabeceras. Lo que
+# se protege acá es el navegador del que mira el tablero.
+#
+# - X-Frame-Options / frame-ancestors: nadie puede meter el tablero dentro de
+#   un iframe suyo para engañar al que lo usa.
+# - nosniff: el navegador respeta el tipo de archivo que declaramos.
+# - Referrer-Policy: al salir no se manda la dirección completa a nadie.
+# - Permissions-Policy: el tablero no usa cámara, micrófono ni ubicación.
+# - CSP, script-src 'self': sólo corren los .js de este sitio. Nada de
+#   onclick="..." en el HTML ni scripts de otros lados: aunque alguien
+#   lograra meter un <img onerror=...>, el navegador no lo ejecuta.
+# - CSP, style-src 'unsafe-inline': Plotly pone estilos en la página al
+#   dibujar (probado en la fase 1: sin eso los gráficos se desarman). Un
+#   estilo inyectado no puede ejecutar nada.
+# - CSP, img-src data: Plotly prueba al arrancar si el navegador sabe
+#   mostrar webp con una imagen data:. Una imagen no ejecuta nada.
+# - CSP, connect-src: el tablero sólo habla con el proyecto de Supabase de los
+#   partidos. Aunque algo se ejecutara, no tiene a dónde mandar datos. Si se
+#   cambia de proyecto, cambiar la URL acá.
+# - vendor/ y fonts/ llevan la versión o el contenido en el nombre (si
+#   cambian, cambia el nombre): se guardan para siempre. El resto (HTML, JS,
+#   CSS) usa lo de Cloudflare: el navegador pregunta cada vez si cambió.
+#
+# Ojo: si dos reglas que coinciden ponen la misma cabecera, Cloudflare junta
+# los valores con una coma. Por eso Cache-Control NO va en /*. Y los
+# comentarios van acá arriba, no entre las cabeceras de una regla.
+
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Strict-Transport-Security: max-age=31536000
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src https://yrxsqrfjqyoicohsfrrt.supabase.co; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+
+/vendor/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
