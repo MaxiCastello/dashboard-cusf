@@ -4,7 +4,9 @@
 //
 // Los textos que llegan acá (rival, jugador, motivo) ya pasaron por
 // texto(): sin < > (plotly interpreta algunas etiquetas HTML).
-import { APAGADO, BORDE, RIVAL, SUP2, TEMA, TEXTO, UNI } from "./tema.js";
+import { pct } from "./formato.js";
+import { str } from "./python.js";
+import { ACENTO, APAGADO, BORDE, RIVAL, SUP2, TEMA, TEXTO, UNI } from "./tema.js";
 
 const BEBAS = "Bebas Neue, Arial Narrow, sans-serif";
 // la config de grafico() de estilo.py (sin barra de botones, sin zoom con la rueda)
@@ -189,4 +191,46 @@ export function lineas(x, series, { alto = 300, porCiento = false, referencias =
   if (porCiento) layout.yaxis = { range: [0, 108], ticksuffix: "%" };
   Object.assign(layout, { xaxis: { showgrid: false }, legend: { y: 1.02, yanchor: "bottom", x: 0 }, margin: { t: 34 } });
   return grafico({ data, layout }, alto);
+}
+
+// UNI hacia la izquierda, el rival hacia la derecha, misma escala. Plotly
+// guarda los textos de las barras como texto ("23"; un 0 va vacío).
+export function mariposa(categorias, uni, rival, { alto = null, nombres = ["UNI", "Rival"], colores = [UNI, RIVAL] } = {}) {
+  const tope = Math.max(...uni, ...rival, 1);
+  const textos = (vs) => vs.map((v) => (v ? str(v) : ""));
+  const data = [
+    { cliponaxis: false, customdata: uni, hovertemplate: "%{y}: %{customdata}<extra>" + nombres[0] + "</extra>",
+      marker: { color: colores[0] }, name: nombres[0], orientation: "h", text: textos(uni), textposition: "outside",
+      x: uni.map((v) => 0 - v), y: categorias, type: "bar" },   // 0 - v y no -v: -0 no es 0 para JS
+    { cliponaxis: false, hovertemplate: "%{y}: %{x}<extra>" + nombres[1] + "</extra>",
+      marker: { color: colores[1] }, name: nombres[1], orientation: "h", text: textos(rival), textposition: "outside",
+      x: rival, y: categorias, type: "bar" },
+  ];
+  const layout = {
+    barmode: "relative", bargap: 0.35,
+    xaxis: { range: [-tope * 1.25, tope * 1.25], showticklabels: false, showgrid: false, zeroline: true,
+      zerolinecolor: BORDE, zerolinewidth: 2 },
+    yaxis: { autorange: "reversed", showgrid: false },
+  };
+  return grafico({ data, layout }, alto || 70 + 44 * categorias.length);
+}
+
+// Un renglón por partido: la barra clara son las chances y la llena, las
+// que terminaron en puntos. El texto dice "X de Y".
+export function chances22(etiquetas, chances, concretadas, alto = null) {
+  const data = [
+    { hovertemplate: "%{y}<br>Chances: %{x}<extra></extra>", marker: { color: "rgba(26,111,212,.32)" }, name: "Chances",
+      orientation: "h", x: chances, y: etiquetas, type: "bar" },
+    { hovertemplate: "%{y}<br>Concretadas: %{x}<extra></extra>", marker: { color: ACENTO }, name: "Concretadas",
+      orientation: "h", width: 0.45, x: concretadas, y: etiquetas, type: "bar" },
+    { cliponaxis: false, hoverinfo: "skip", mode: "text", showlegend: false,
+      text: concretadas.map((c, i) => `  ${c} de ${chances[i]} · ${pct(c, chances[i])}%`),
+      textfont: { color: APAGADO, family: "DM Mono, monospace", size: 12 }, textposition: "middle right",
+      x: chances, y: etiquetas, type: "scatter" },
+  ];
+  const layout = {
+    barmode: "overlay", bargap: 0.3, yaxis: { autorange: "reversed", showgrid: false },
+    xaxis: { range: [0, Math.max(...chances, 1) * 1.45] }, legend: { y: 1.02, yanchor: "bottom", x: 0 }, margin: { t: 34 },
+  };
+  return grafico({ data, layout }, alto || 90 + 30 * etiquetas.length);
 }

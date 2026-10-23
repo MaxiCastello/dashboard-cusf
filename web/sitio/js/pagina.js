@@ -26,7 +26,7 @@ const $ = (id) => document.getElementById(id);
 
 export const PESTANAS_TEMPORADA = ["Resumen", "Partidos", "Puntos", "Formaciones", "Penales", "Tackles", "Objetivos", "Informe"];
 // Las pestañas de la temporada ya pasadas (fase 4), en el orden de arriba.
-const SECCIONES_TEMPORADA = [V.resumen, V.evolucion];
+const SECCIONES_TEMPORADA = [V.resumen, V.evolucion, V.puntos];
 
 export const PESTANAS_PARTIDO = ["Resumen", "1° vs 2° tiempo", "Puntos", "Formaciones", "Penales", "Tackles", "Objetivos",
   "Informe"];

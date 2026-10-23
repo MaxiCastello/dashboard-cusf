@@ -8,12 +8,16 @@
 // jerga y sin decir si estuvo bien o mal.
 import { etiqueta, resultado, tacklesTemporada } from "./calculos.js";
 import { conSigno, pct, unDecimal, xdey } from "./formato.js";
-import { acumulado, dona, lineas, pesas, piruletas } from "./graficos.js";
+import { acumulado, chances22, dona, lineas, mariposa, pesas, piruletas } from "./graficos.js";
 import { anillos, html, kpis, tabla } from "./piezas.js";
-import { o } from "./python.js";
+import { capitalizar, o } from "./python.js";
 import { ACENTO, AVISO, MAL, NEUTRO, RIVAL, UNI } from "./tema.js";
 
 // ── Lo que usan varias pestañas ─────────────────────────────────────────────
+
+// Formas de anotar: el mismo color en la torta de UNI y en la del rival
+const FORMAS = [["Tries", 5, "tries", UNI], ["Tries penales", 7, "triesp", "#7be0a5"], ["Conversiones", 2, "conv", ACENTO],
+  ["Penales a los palos", 3, "palos", "#9fb8ff"], ["Drops", 3, "drop", AVISO]];
 
 const pen = (f, lado = "uni") => f.penales.reduce((s, x) => s + x[lado], 0);
 const hechos = (filas) => filas.reduce((s, j) => s + j.pos + j.neu + j.neg, 0);
@@ -132,4 +136,63 @@ export function evolucion(lz, t) {
       conTk.map((p) => xdey(hechos(p.tackles), intentos(p.tackles)))]],
     { alto: 260, porCiento: true, referencias: [[pct(hechos(jug), intentos(jug)), "Temporada", UNI]] }));
   }
+}
+
+// ── Puntos ──────────────────────────────────────────────────────────────────
+
+// Chances en 22 rival: el total y, si hay más de un partido, uno por renglón.
+function chancesEn22(lz, t) {
+  const e = t.totales.efectividad_22;
+  if (!e) return;
+  const filas = t.planilla
+    ? t.serie_22.map((r) => [r.rival, r.concretadas, r.chances])
+    : t.partidos.filter((p) => p.efectividad_22).map((p) => [etiqueta(p, true), p.efectividad_22.concretadas, p.efectividad_22.chances]);
+  lz.titulo("Chances en 22 rival");
+  const [c1, c2] = lz.columnas([1, 3], "large");
+  c1.html(anillos([["Concretadas", e.concretadas, e.chances, ACENTO, "UNI"]], 1));
+  if (filas.length > 1) c2.grafico(chances22(filas.map((f) => f[0]), filas.map((f) => f[2]), filas.map((f) => f[1])));
+  nota(lz, "Cuántas veces UNI entró en la 22 rival y cuántas de esas terminaron en puntos. " +
+    "Se carga a mano: Uni-Dat no registra las chances en 22.");
+}
+
+export function puntos(lz, t) {
+  const p = t.totales.puntos;
+  const cols = lz.columnas(2, "large");
+  [["u", "UNI"], ["r", "el rival"]].forEach(([lado, quien], i) => {
+    const vals = FORMAS.map(([, v, k]) => p[`${k}_${lado}`] * v);
+    cols[i].titulo(`Cómo hizo los puntos ${quien}`);
+    if (vals.some(Boolean)) {
+      cols[i].grafico(dona(FORMAS.map(([n]) => n), vals, FORMAS.map((f) => f[3]), vals.reduce((s, v) => s + v, 0), "puntos", 300));
+    } else {
+      nota(cols[i], "Sin puntos.");
+    }
+  });
+  nota(lz, "Puntos de cada forma de anotar: un try vale 5, un try penal 7, una conversión 2, un penal o un drop 3.");
+
+  lz.titulo("Pateo a los palos");
+  const items = [];
+  for (const [lado, quien, color] of [["u", "UNI", UNI], ["r", "Rival", RIVAL]]) {
+    items.push(["Conversiones", p[`conv_${lado}`], p[`convt_${lado}`], color, quien],
+      ["Penales", p[`palos_${lado}`], p[`palost_${lado}`], color, quien]);
+    if (p.dropt_u || p.dropt_r) items.push(["Drops", p[`drop_${lado}`], p[`dropt_${lado}`], color, quien]);
+  }
+  lz.html(anillos(items));
+
+  // de dónde salieron los tries: en el orden en que aparecen, de más a menos
+  const orig = new Map();
+  for (const q of t.partidos) {
+    for (const [k, [u, r]] of q.tries_origen ?? []) {
+      if (!orig.has(k)) orig.set(k, [0, 0]);
+      orig.get(k)[0] += u;
+      orig.get(k)[1] += r;
+    }
+  }
+  if (orig.size) {
+    const [c1] = lz.columnas([3, 2], "large");
+    c1.titulo("De dónde salieron los tries");
+    const ks = [...orig.keys()].sort((a, b) => (orig.get(b)[0] + orig.get(b)[1]) - (orig.get(a)[0] + orig.get(a)[1]));
+    c1.grafico(mariposa(ks.map(capitalizar), ks.map((k) => orig.get(k)[0]), ks.map((k) => orig.get(k)[1])));
+    nota(c1, "UNI a la izquierda, el rival a la derecha.");
+  }
+  chancesEn22(lz, t);
 }
