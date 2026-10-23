@@ -20,7 +20,7 @@ async function arrancar() {
   const [unidat, [manuales]] = await Promise.all([filasUnidat(), filasManuales()]);
   const partidos = partidosBase(unidat, manuales);
   const anio = aniosDisponibles(partidos)[0];
-  if (anio === ANIO_PLANILLA) throw new Error("La temporada 2025 (planilla) se pasa en la fase 2.");
+  if (anio === ANIO_PLANILLA) throw new Error("La temporada 2025 (planilla) se muestra desde la fase 3.");
   const cat = categoriasDe(partidos, anio)[0];
   const t = temporada(partidos, anio, cat);
   encabezado(`Temporada ${anio} · ${cat}`);

@@ -4,6 +4,8 @@
 //
 // FASE 1: sólo lectura. El login y la carga se pasan en la fase 7.
 
+import { leerJson } from "./python.js";
+
 export const URL_BASE = "https://yrxsqrfjqyoicohsfrrt.supabase.co";
 const CLAVE = "sb_publishable_qmd1XRbPJ5Ej7i08ZUZq_g__Vn7_2PZ";
 const TIEMPO_MS = 15000;
@@ -59,7 +61,8 @@ async function pedir(ruta) {
   }
   if (r.ok) {
     try {
-      return JSON.parse(cuerpo);
+      // leerJson y no JSON.parse: sin perder el orden de las claves (python.js)
+      return leerJson(cuerpo);
     } catch {
       throw new ErrorBase("La base contestó algo que no se entiende. Probá de nuevo en un rato.", r.status);
     }

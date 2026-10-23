@@ -1,9 +1,9 @@
-// FASE 1: casos a mano. En la fase 2 se suman miles de casos al azar con los
-// resultados que da Python.
+// Casos a mano con los valores que da Python. Miles de casos al azar más,
+// contra Python, en pruebas/fuzz_cuentas.py.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { esc, pct, redondear, xdey } from "../sitio/js/formato.js";
+import { coma, conSigno, esc, fijo, pct, redondear, unDecimal, xdey } from "../sitio/js/formato.js";
 
 test("redondear() es el round() de Python: los .5 exactos van al par", () => {
   const casos = [[0.5, 0], [1.5, 2], [2.5, 2], [12.5, 12], [13.5, 14], [-0.5, 0], [-1.5, -2], [-2.5, -2],
@@ -30,4 +30,28 @@ test("esc() escapa igual que html.escape(quote=True)", () => {
   assert.equal(esc(`<img src=x onerror="alert('1')">&`), "&lt;img src=x onerror=&quot;alert(&#x27;1&#x27;)&quot;&gt;&amp;");
   assert.equal(esc(12), "12");
   assert.equal(esc("Ñandú · García"), "Ñandú · García");
+});
+
+test("fijo() es f\"{x:.1f}\" / f\"{x:.0f}\" de Python: en el empate justo va al par (toFixed sube)", () => {
+  // valores de Python: [f"{x:.1f}", f"{x:.0f}"]
+  const casos = [[0.25, "0.2", "0"], [0.75, "0.8", "1"], [2.5, "2.5", "2"], [12.5, "12.5", "12"], [13.5, "13.5", "14"],
+    [0.05, "0.1", "0"], [0.15, "0.1", "0"], [0.35, "0.3", "0"], [2.25, "2.2", "2"], [9.95, "9.9", "10"],
+    [-0.25, "-0.2", "-0"], [-2.5, "-2.5", "-2"], [1 / 3, "0.3", "0"], [2 / 3, "0.7", "1"], [0, "0.0", "0"],
+    [100, "100.0", "100"], [3, "3.0", "3"], [10, "10.0", "10"]];
+  for (const [x, uno, cero] of casos) {
+    assert.equal(fijo(x, 1), uno, `fijo(${x}, 1)`);
+    assert.equal(fijo(x, 0), cero, `fijo(${x}, 0)`);
+  }
+  assert.equal(unDecimal(2.25), "2,2");
+});
+
+test("coma() y conSigno() como _coma() y f\"{n:+d}\" de vistas.py", () => {
+  assert.deepEqual([3, 2.5, 10, 100, 0.05, 1 / 3].map(coma), ["3", "2,5", "10", "100", "0,1", "0,3"]);
+  assert.deepEqual([5, -3, 0].map(conSigno), ["+5", "-3", "+0"]);
+});
+
+test("fijo() con números enormes escribe todas las cifras (como Python), y sin número corta", () => {
+  assert.equal(fijo(1e21, 1), "1000000000000000000000.0");
+  assert.equal(fijo(-1e22, 0), "-10000000000000000000000");
+  for (const x of [Number.NaN, Infinity, -Infinity]) assert.throws(() => fijo(x, 1), RangeError);
 });
