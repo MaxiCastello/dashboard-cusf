@@ -1,0 +1,19 @@
+{
+  "name": "tablero-cusf-web",
+  "private": true,
+  "description": "Tablero del Club Universitario de Santa Fe (versión estática para Cloudflare Pages). Sólo herramientas de desarrollo: la página no usa nada de node_modules.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.8"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "test": "node correr-pruebas.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.12.0",
+    "eslint-plugin-no-unsanitized": "4.1.5",
+    "globals": "17.13.0"
+  }
+}

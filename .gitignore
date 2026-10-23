@@ -5,3 +5,10 @@ __pycache__/
 .env
 # Configuración local de Claude Code
 .claude/
+# Herramientas de desarrollo del tablero web (no se publican)
+web/node_modules/
+# Copias de la base, referencia y capturas de la migración: tienen datos
+# reales y viven en dashboard-cusf.pruebas/ (fuera del repo). Por las dudas:
+base_*/
+referencia_*/
+capturas*/
