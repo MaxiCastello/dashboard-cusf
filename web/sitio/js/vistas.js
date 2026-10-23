@@ -6,11 +6,11 @@
 //
 // Criterio de los números: primero "X de Y" y después el porcentaje, sin
 // jerga y sin decir si estuvo bien o mal.
-import { etiqueta, resultado, tacklesTemporada } from "./calculos.js";
+import { etiqueta, resultado, sumar, tacklesTemporada } from "./calculos.js";
 import { conSigno, pct, unDecimal, xdey } from "./formato.js";
-import { acumulado, chances22, dona, lineas, mariposa, pesas, piruletas } from "./graficos.js";
+import { acumulado, chances22, dona, lineas, mapaCalor, mariposa, pesas, piruletas } from "./graficos.js";
 import { anillos, html, kpis, tabla } from "./piezas.js";
-import { capitalizar, o } from "./python.js";
+import { capitalizar, enteroDeTexto, o, soloCifras } from "./python.js";
 import { ACENTO, AVISO, MAL, NEUTRO, RIVAL, UNI } from "./tema.js";
 
 // ── Lo que usan varias pestañas ─────────────────────────────────────────────
@@ -195,4 +195,75 @@ export function puntos(lz, t) {
     nota(c1, "UNI a la izquierda, el rival a la derecha.");
   }
   chancesEn22(lz, t);
+}
+
+// ── Formaciones ─────────────────────────────────────────────────────────────
+
+// Ganados (todos los partidos) y recuperados (sólo los partidos que tienen
+// ese dato: a uno cargado a mano le puede faltar).
+function anillosFp(lz, t, k, lan, rlan, rotPropio, rotRec) {
+  const f = t.totales[k];
+  const items = [[rotPropio, f.uGan, f[lan], UNI, "UNI"], [rotPropio, f.rGan, f[rlan], RIVAL, "Rival"]];
+  let rec = f, sin = [];
+  if (f.uRec === null) {
+    const con = t.partidos.filter((p) => p[k].uRec !== null);
+    sin = t.partidos.filter((p) => p[k].uRec === null).map((p) => p.rival);
+    rec = con.length ? sumar(con)[k] : null;
+  }
+  if (rec) {
+    items.push([`${rotRec} al rival`, rec.uRec, rec[rlan], UNI, "UNI"], [`${rotRec} a UNI`, rec.rRec, rec[lan], RIVAL, "Rival"]);
+  }
+  lz.html(anillos(items, items.length === 4 ? 2 : null));
+  if (rec && sin.length) nota(lz, `${rotRec}: sin ${sin.join(", ")} (cargado a mano sin ese dato).`);
+}
+
+export function formaciones(lz, t) {
+  const tot = t.totales;
+  const cols = lz.columnas(2, "large");
+  [["Line", "line"], ["Scrum", "scrum"]].forEach(([titulo, k], i) => {
+    cols[i].titulo(titulo);
+    anillosFp(cols[i], t, k, "uLan", "rLan", "Propios ganados", "Recuperados");
+  });
+  const salidas = [["Salidas", "salida"], ["Salidas de 22", "salida22"], ["Salidas del ingoal", "salida_ingoal"]]
+    .filter(([, k]) => tot[k].uPro || tot[k].rPro);
+  if (salidas.length) {
+    const c = lz.columnas(2, "large");
+    salidas.forEach(([nombre, k], i) => {
+      c[i % 2].titulo(nombre);
+      anillosFp(c[i % 2], t, k, "uPro", "rPro", "Propias ganadas", "Recuperadas");
+    });
+  }
+
+  // Line de UNI por cantidad de jugadores y posición (como en Uni-Dat)
+  const celdas = new Map();
+  for (const p of t.partidos) {
+    for (const [k, [g, n]] of Object.entries(p.line_tabla ?? {})) {
+      if (!celdas.has(k)) celdas.set(k, [0, 0]);
+      celdas.get(k)[0] += g;
+      celdas.get(k)[1] += n;
+    }
+  }
+  const [c1, c2] = lz.columnas([3, 2], "large");
+  if (celdas.size) {
+    // sorted(key=(x == "S/D", int(x) si es número)): los números de menor a mayor, S/D al final
+    const clave = (x) => [x === "S/D" ? 1 : 0, soloCifras(x) ? enteroDeTexto(x) : 0];
+    const orden = (xs) => [...new Set(xs)].sort((a, b) => {
+      const [ka, kb] = [clave(a), clave(b)];
+      return ka[0] - kb[0] || ka[1] - kb[1];
+    });
+    const jug = orden([...celdas.keys()].map((k) => k.split("|")[0]));
+    const zon = orden([...celdas.keys()].map((k) => k.split("|")[1]));
+    const celda = (j, z, i) => (celdas.get(`${j}|${z}`) ?? [0, 0])[i];
+    c1.titulo("Line de UNI: jugadores y posición");
+    c1.grafico(mapaCalor(jug.map((j) => (j !== "S/D" ? `${j} jugadores` : "S/D")), zon.map((z) => (z !== "S/D" ? `${z}° posición` : "S/D")),
+      jug.map((j) => zon.map((z) => celda(j, z, 0))), jug.map((j) => zon.map((z) => celda(j, z, 1)))));
+    nota(c1, "Ganados de tirados en cada combinación; el color va del rojo (pocos) al verde (muchos). " +
+      "Sólo partidos cargados en Uni-Dat.");
+  }
+  if (tot.knockons) {
+    const k = tot.knockons;
+    const col = celdas.size ? c2 : lz.contenedor();
+    col.titulo("Knock-ons");
+    col.grafico(dona(["UNI", "Rival"], [k.uni, k.rival], [UNI, RIVAL], k.uni + k.rival, "knock-ons", 260));
+  }
 }

@@ -234,3 +234,16 @@ export function chances22(etiquetas, chances, concretadas, alto = null) {
   };
   return grafico({ data, layout }, alto || 90 + 30 * etiquetas.length);
 }
+
+// Celdas coloreadas por el % ganado; el texto dice "X de Y".
+export function mapaCalor(filas, columnas, ganados, tirados, alto = null) {
+  const z = ganados.map((fg, i) => fg.map((g, j) => (tirados[i][j] ? pct(g, tirados[i][j]) : null)));
+  const txt = ganados.map((fg, i) => fg.map((g, j) => (tirados[i][j] ? `${g} de ${tirados[i][j]}` : "")));
+  const data = [{
+    colorscale: [[0, "#ff1744"], [0.5, "#ffd600"], [1, UNI]], hovertemplate: "%{y} · %{x}<br>%{text} · %{z}%<extra></extra>",
+    showscale: false, text: txt, textfont: { color: "#0a0c0f", family: "DM Mono, monospace", size: 13 },
+    texttemplate: "%{text}", x: columnas, xgap: 4, y: filas, ygap: 4, z, zmax: 100, zmin: 0, type: "heatmap",
+  }];
+  const layout = { xaxis: { side: "top", showgrid: false }, yaxis: { autorange: "reversed", showgrid: false }, margin: { t: 30 } };
+  return grafico({ data, layout }, alto || 70 + 52 * filas.length);
+}

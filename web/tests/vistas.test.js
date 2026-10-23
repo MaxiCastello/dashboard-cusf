@@ -26,7 +26,7 @@ function temporadas(sub) {
 const comoJson = (x) => JSON.parse(JSON.stringify(x));
 
 // Las secciones de la temporada ya pasadas (se suman a medida que se pasan).
-const SECCIONES_TEMPORADA = { resumen: V.resumen, evolucion: V.evolucion, puntos: V.puntos };
+const SECCIONES_TEMPORADA = { resumen: V.resumen, evolucion: V.evolucion, puntos: V.puntos, formaciones: V.formaciones };
 
 for (const sub of ["base", "demo"]) {
   const ts = temporadas(sub);
