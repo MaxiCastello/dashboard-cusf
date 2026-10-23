@@ -10,8 +10,8 @@ import { etiqueta, resultado, sumar, tacklesTemporada } from "./calculos.js";
 import { coma, conSigno, pct, unDecimal, xdey } from "./formato.js";
 import { acumulado, barras, chances22, dona, lineas, mapaCalor, mariposa, pesas, piruletas, sol } from "./graficos.js";
 import { aclarar, anillos, html, kpis, tabla } from "./piezas.js";
-import { MIN_AMARILLA, MIN_ROJA, minutosConUnoMenos } from "./objetivos.js";
-import { capitalizar, enteroDeTexto, o, soloCifras } from "./python.js";
+import { MIN_AMARILLA, MIN_ROJA, OBJETIVOS, evaluar, minutosConUnoMenos, temporada } from "./objetivos.js";
+import { capitalizar, enteroDeTexto, o, soloCifras, str } from "./python.js";
 import { ACENTO, AVISO, MAL, NEUTRO, RIVAL, UNI } from "./tema.js";
 
 // ── Lo que usan varias pestañas ─────────────────────────────────────────────
@@ -360,4 +360,69 @@ function penalesDetalle(lz, t, pens) {
     c2.desplegable("Ver la lista de motivos").html(tabla(["Motivo", "Situación", "UNI", "Rival"],
       mot.map((f) => [f.motivo, f.situacion, f.uni, f.rival])));
   }
+}
+
+// ── Objetivos ───────────────────────────────────────────────────────────────
+
+// "8 de 9 · 89%" o la cantidad.
+const valor = (e) => (e.b !== null ? xdey(e.a, e.b) : str(e.a));
+
+function celda(e) {
+  if (e === null) return html`<td class="obj sd">sin datos</td>`;
+  const [marca, clase] = e.cumple ? ["✓", "ok"] : ["✗", "no"];
+  return html`<td class="obj ${clase}">${marca} ${valor(e)}</td>`;
+}
+
+// Un partido en la card: ✓ cumplido, ✗ no, vacío sin datos.
+function cuadradito(e, p) {
+  const [marca, clase] = e && e.cumple ? ["✓", "ok"] : e ? ["✗", "no"] : ["", "sd"];
+  const txt = `${etiqueta(p, true)}: ${e ? valor(e) : "sin datos"}`;
+  return html`<span class="${clase}" title="${txt}">${marca}</span>`;
+}
+
+// (`<div class=pts>` sin comillas, como en el Python: el HTML tiene que ser el mismo)
+function card(nombre, meta, grande, chico, abajo, puntos = "", clase = "") {
+  return html`<div class="objc"><div class="n">${nombre}</div><div class="m">${meta}</div><div class="v ${clase}">${grande}<small>${
+    chico}</small></div>${String(puntos) ? html`<div class=pts>${puntos}</div>` : ""}<div class="t">${abajo}</div></div>`;
+}
+
+export function objetivos(lz, t) {
+  const ps = t.partidos;
+  if (t.planilla) {
+    nota(lz, "La planilla 2025 no tiene estos datos partido a partido: los objetivos se miden desde 2026.");
+    return;
+  }
+  if (!ps.length) return;
+  if (ps.length === 1) {
+    const cards = OBJETIVOS.map((ob) => {
+      const e = evaluar(ob, ps[0]);
+      return e
+        ? card(ob.nombre, ob.meta, e.cumple ? "✓ Sí" : "✗ No", "", `En el partido: ${valor(e)}`, "", e.cumple ? "ok" : "no")
+        : card(ob.nombre, ob.meta, "—", "sin datos", "");
+    });
+    lz.html(html`<div class="objs">${cards}</div>`);
+    return;
+  }
+  const cards = OBJETIVOS.map((ob) => {
+    const s = temporada(ob, ps);
+    let temp;
+    if (!s.medidos) temp = "Sin datos en ningún partido";
+    else if (s.b !== null) temp = `Temporada: ${xdey(s.a, s.b)}`;
+    else temp = `Temporada: ${coma(s.a / s.medidos)} por partido`;
+    if (s.sin_datos && s.medidos) temp += ` (${s.sin_datos} sin datos)`;
+    const puntos = html`${ps.map((p) => cuadradito(evaluar(ob, p), p))}`;
+    const grande = s.medidos ? `${s.cumplidos} de ${s.medidos}` : "—";
+    return card(ob.nombre, ob.meta, grande, s.medidos ? "partidos" : "", temp, puntos);
+  });
+  lz.titulo("En cuántos partidos se cumplió cada objetivo");
+  lz.html(html`<div class="objs">${cards}</div>`);
+  nota(lz, "Cada cuadradito es un partido, del primero al último: ✓ se cumplió, ✗ no, vacío si falta el dato. " +
+    "Temporada: la suma de los partidos que tienen el dato (en penales y tarjetas, el promedio por partido).");
+  lz.titulo("Partido a partido");
+  const cab = OBJETIVOS.map((ob) => html`<th>${ob.nombre}</th>`);
+  const cuerpo = [...ps].reverse().map((p) => html`<tr><td>${etiqueta(p, true)}</td>${OBJETIVOS.map((ob) => celda(evaluar(ob, p)))}</tr>`);
+  lz.html(html`<div class="tabla-scroll"><table class="t objetivos"><thead><tr><th>Partido</th>${cab}</tr></thead><tbody>${
+    cuerpo}</tbody></table></div>`);
+  nota(lz, "Las chances en 22 se cargan a mano (Uni-Dat no las registra) y las salidas del rival que " +
+    "se quedó UNI sólo están en los partidos cargados en Uni-Dat: por eso a algunos les falta el dato.");
 }
