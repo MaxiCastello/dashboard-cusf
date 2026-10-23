@@ -4,7 +4,7 @@
 //
 // Los textos que llegan acá (rival, jugador, motivo) ya pasaron por
 // texto(): sin < > (plotly interpreta algunas etiquetas HTML).
-import { APAGADO, BORDE, RIVAL, TEMA, UNI } from "./tema.js";
+import { APAGADO, BORDE, RIVAL, TEMA, TEXTO, UNI } from "./tema.js";
 
 const BEBAS = "Bebas Neue, Arial Narrow, sans-serif";
 const CONFIG = { displayModeBar: false, scrollZoom: false };
@@ -21,13 +21,20 @@ function grafico(fig, alto = 320) {
 // Python.
 export const dibujadas = new WeakMap();
 
+// Lo que Streamlit le agrega a cada figura al dibujarla (st.plotly_chart con
+// theme=None, medido en la fase 3): la letra y el color de sus textos. Por
+// eso los gráficos del tablero salen en Source Sans y no en la DM Sans del
+// tema (es la misma letra que --st de tablero.css). El ancho, Streamlit lo
+// pone a mano; acá lo hace `responsive`.
+export const FUENTE_STREAMLIT = { color: TEXTO, family: '"Source Sans", sans-serif, "Source Sans", sans-serif' };
+
 // Plotly guarda y cambia lo que recibe: le llega una copia, así la figura
-// sigue siendo la que se comparó en las pruebas. `responsive` lo agrega
-// Streamlit por su cuenta (el gráfico acompaña el ancho de la pantalla).
+// sigue siendo la que se comparó en las pruebas.
 export function dibujar(el, fig) {
   dibujadas.set(el, fig);
   const { data, layout } = structuredClone(fig);
-  return window.Plotly.newPlot(el, data, { ...layout, template: structuredClone(TEMA) }, { ...CONFIG, responsive: true });
+  return window.Plotly.newPlot(el, data, { ...layout, font: { ...FUENTE_STREAMLIT, ...layout.font }, template: structuredClone(TEMA) },
+    { ...CONFIG, responsive: true });
 }
 
 // Torta con agujero; en el medio, el total o lo principal. null si no hay

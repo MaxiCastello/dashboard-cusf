@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { dona, pesas } from "../sitio/js/graficos.js";
+import { FUENTE_STREAMLIT, dibujadas, dibujar, dona, pesas } from "../sitio/js/graficos.js";
 import { TEMA } from "../sitio/js/tema.js";
 import { leer, llamadas } from "./_referencia.js";
 
@@ -56,4 +56,26 @@ test("pesas(): el alto sale de la cantidad de partidos, y sin textos no hay reng
   assert.equal(f.data.length, 3 + 2);
   assert.equal(pesas(["a"], [1], [2], { textos: [] }).data.length, 1 + 2);
   assert.deepEqual(pesas(["a", "b"], [1, 5], [4, 2], { textos: ["x", "y"] }).data.at(-1).x, [4, 5]);
+});
+
+test("dibujar(): a Plotly le llega la figura con la letra que pone Streamlit, el tema y la config; la figura no cambia", async () => {
+  const llamadasPlotly = [];
+  globalThis.window = { Plotly: { newPlot: async (...a) => llamadasPlotly.push(a) } };
+  try {
+    const fig = dona(["Ganados", "Perdidos"], [3, 1], ["#00c853", "#ff1744"], "3-0-1");
+    const copia = structuredClone(fig);
+    const el = {};
+    await dibujar(el, fig);
+    const [[elPlotly, data, layout, config]] = llamadasPlotly;
+    assert.equal(elPlotly, el);
+    assert.deepEqual(data, copia.data);
+    assert.deepEqual(layout, { ...copia.layout, font: FUENTE_STREAMLIT, template: TEMA });
+    assert.deepEqual(config, { displayModeBar: false, scrollZoom: false, responsive: true });
+    assert.equal(dibujadas.get(el), fig);
+    assert.deepEqual(fig, copia);                       // Plotly recibe copias
+    assert.notEqual(layout.template, TEMA);             // ni el tema compartido
+    assert.deepEqual(FUENTE_STREAMLIT, { color: "#e8eaf0", family: '"Source Sans", sans-serif, "Source Sans", sans-serif' });
+  } finally {
+    delete globalThis.window;
+  }
 });

@@ -11,22 +11,27 @@
 <script src="vendor/plotly-strict-3.4.0.min.js" defer></script>
 <script type="module" src="js/inicio.js"></script>
 </head>
-<body>
+<body data-pagina="tablero">
+<header class="barra" id="barra"></header>
 <main class="contenedor">
   <div class="enc" id="enc"></div>
+  <div class="aviso error" id="aviso" role="alert" hidden></div>
   <p class="nota" id="cargando">Leyendo partidos…</p>
-  <div class="columnas c-1-2" id="columnas">
-    <section>
-      <h3>Resultados</h3>
-      <div id="g-resultados"></div>
-    </section>
-    <section>
-      <h3>Partido a partido</h3>
-      <div id="g-partidos"></div>
-    </section>
+  <div class="columnas chico c-1-2" id="filtros" hidden>
+    <div class="filtro" role="radiogroup" aria-labelledby="r-temporada">
+      <p class="rotulo" id="r-temporada">Temporada</p>
+      <div class="radios" id="anios"></div>
+    </div>
+    <div class="filtro" role="radiogroup" aria-labelledby="r-categoria" id="filtro-cat">
+      <p class="rotulo" id="r-categoria">Categoría</p>
+      <div class="radios" id="cats"></div>
+    </div>
   </div>
-  <h3>UNI en números</h3>
-  <div id="anillos"></div>
+  <div class="ver" id="caja-ver" hidden>
+    <label class="rotulo" for="ver">Ver</label>
+    <select id="ver"></select>
+  </div>
+  <div id="vista"></div>
 </main>
 </body>
 </html>

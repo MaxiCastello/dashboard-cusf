@@ -1,0 +1,11 @@
+Letras y íconos del tablero (todas de uso libre, con su licencia):
+
+- Bebas Neue (Dharma Type), DM Sans y DM Mono (Colophon Foundry):
+  SIL Open Font License 1.1 (https://openfontlicense.org). Los archivos
+  son los de Google Fonts, copiados de Uni-Dat.
+- Source Sans 3, (c) 2023 Adobe, con el nombre reservado "Source":
+  SIL Open Font License 1.1 (https://openfontlicense.org). El archivo es
+  el que trae Streamlit 1.55, sin modificar.
+- Íconos de js/iconos.js: Material Symbols Rounded (Google), Apache
+  License 2.0 (https://www.apache.org/licenses/LICENSE-2.0). El dibujo de
+  cada ícono sacado de la letra, sin cambios.

@@ -1,46 +1,138 @@
 /* Aspecto del tablero: el CSS de cusf/estilo.py, más lo que en Streamlit
-   ponía el propio Streamlit (fondo, letra, espacios). Los colores son los de
-   Uni-Dat (js/tema.js). */
+   ponía el propio Streamlit (fondo, letras, espacios, radios, desplegable,
+   pestañas, avisos), copiado de lo que mide pruebas/medir_streamlit.py.
+   Los colores son los de Uni-Dat (js/tema.js). */
 :root {
   --bg: #0a0c0f; --sup: #13161b; --sup2: #1c2028; --borde: #2a2f3a;
   --texto: #e8eaf0; --apagado: #8b93a3; --acento: #1a6fd4;
   --uni: #00c853;
+  /* la letra de Streamlit: todo lo que no pide otra (notas, rótulos, gráficos) */
+  --st: "Source Sans", sans-serif, "Source Sans", sans-serif;
+  color-scheme: dark;   /* la lista del desplegable y las barras de scroll, oscuras */
 }
 * { box-sizing: border-box; }
-/* hidden tiene que ganarle a display:grid de .columnas */
+/* hidden tiene que ganarle a display:grid / flex */
 [hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--texto);
   font-family: 'DM Sans', system-ui, sans-serif; font-size: 16px; line-height: 1.6; }
+p { margin: 0; }
 
+/* ── Barra de arriba (Tablero / Cargar partido) ─────────────────────────── */
+.barra { position: absolute; top: 0; left: 0; right: 0; height: 60px; background: var(--bg);
+  display: flex; align-items: center; padding: 0 16px; gap: 4px; z-index: 2; }
+.barra nav { display: flex; gap: 4px; }
+.barra a { display: inline-flex; align-items: center; gap: 8px; height: 28px; margin: 2px 0; padding: 0 8px;
+  border-radius: 6px; font-size: 14px; line-height: 28px; color: rgba(232,234,240,.75); text-decoration: none; }
+.barra a svg { width: 16px; height: 16px; fill: rgba(232,234,240,.6); flex: none; }
+/* el texto ocupa lo que ocuparía en negrita (como Streamlit): no salta al elegirlo */
+.barra a span::after { content: attr(data-texto); display: block; height: 0; overflow: hidden;
+  visibility: hidden; font-weight: 600; }
+.barra a:hover { background: rgba(157,166,185,.15); }
+.barra a[aria-current="page"] { background: rgba(157,166,185,.25); color: var(--texto); font-weight: 600; }
+.barra a[aria-current="page"] svg { fill: var(--texto); }
+.barra a:focus-visible { outline: 2px solid var(--acento); outline-offset: 1px; }
+
+/* ── Página: una columna de piezas separadas 1rem, como Streamlit ───────── */
 /* Usa todo el ancho de la pantalla (notebook o monitor), con márgenes que
    crecen con ella; sólo en pantallas muy anchas se frena para que se lea. */
-.contenedor { max-width: 1760px; margin: 0 auto; padding: 1.5rem clamp(1rem, 3vw, 3.5rem) 4rem; }
-h1, h2, h3 { font-family: 'Bebas Neue', 'Arial Narrow', sans-serif; letter-spacing: 2px; font-weight: 400; }
-h3 { font-size: 1.35rem; line-height: 1.2; margin: .6rem 0 0; padding: .5rem 0 1rem; }
+.contenedor { max-width: 1760px; margin: 0 auto; padding: calc(4.4rem + 1rem) clamp(1rem, 3vw, 3.5rem) 10rem;
+  display: flex; flex-direction: column; gap: 1rem; }
+.contenedor > *, .panel > *, .columnas > * > * { min-width: 0; }
+.md, .md p, .rotulo, .aviso, select { font-family: var(--st); }
+h1, h2, h3 { font-family: 'Bebas Neue', 'Arial Narrow', sans-serif; font-weight: 400; margin: 0; }
+h3 { font-size: 1.35rem; line-height: 1.2; letter-spacing: -0.005em; margin-top: .6rem; padding: .75rem 0 1rem; }
 
-/* Columnas como st.columns: lado a lado en la compu, apiladas en la tablet parada */
-.columnas { display: grid; gap: 3rem; }
-.columnas.c-1-2 { grid-template-columns: 1fr 2fr; }
-.columnas > * { min-width: 0; }
+/* Columnas como st.columns: cada una mide su parte del ancho menos una
+   parte igual del espacio entre columnas (así lo hace Streamlit: con dos
+   columnas, cada una pierde la mitad del espacio); en la tablet parada van
+   una abajo de la otra. "chico" = el espacio de los filtros (1rem), el
+   resto 4rem (gap="large"). */
+.columnas { display: flex; gap: 4rem; }
+.columnas.chico { gap: 1rem; }
+.columnas > * { display: flex; flex-direction: column; gap: 1rem; min-width: 0; }
+.columnas.c-1-1 > * { width: calc(50% - 2rem); }
+.columnas.c-1-2 > :first-child { width: calc(33.3333% - 2rem); }
+.columnas.c-1-2 > :last-child { width: calc(66.6667% - 2rem); }
+.columnas.chico.c-1-2 > :first-child { width: calc(33.3333% - .5rem); }
+.columnas.chico.c-1-2 > :last-child { width: calc(66.6667% - .5rem); }
 
-/* Encabezado */
-.enc { display:flex; align-items:center; gap:14px; margin-bottom:6px; }
+/* ── Encabezado ──────────────────────────────────────────────────────────── */
+/* margin-bottom -10px: en Streamlit el encabezado ocupa 44px (el escudo se
+   sale 10px) y después viene el espacio de 1rem: lo de abajo queda a 6px. */
+.enc { display:flex; align-items:center; gap:14px; margin-bottom:-10px; font-family: var(--st); }
 .enc img { height:54px; }
 .enc .t { font-family:'Bebas Neue',sans-serif; font-size:2rem; letter-spacing:4px; line-height:1;
   color:var(--texto); }
 .enc .s { font-family:'DM Mono',monospace; font-size:.72rem; letter-spacing:2px; color:var(--apagado); }
 
-/* Números grandes */
+/* ── Avisos (st.error / st.info) ─────────────────────────────────────────── */
+.aviso { padding: 16px; border-radius: 8px; font-size: 16px; line-height: 24px; }
+.aviso.error { background: rgba(255,108,108,.2); color: rgb(255,108,108); }
+.aviso.info { background: rgba(61,157,243,.2); color: rgb(61,157,243); }
+
+/* ── Rótulo de un filtro (Temporada, Categoría, Ver) ─────────────────────── */
+/* el rótulo ocupa su texto (22,4px) y el renglón 24px + 4px hasta el control */
+.rotulo { display: block; width: fit-content; font-size: 14px; line-height: 22.4px; margin-bottom: 5.6px; }
+.columnas > .filtro { gap: 0; }
+
+/* ── Radios (Temporada, Categoría) ───────────────────────────────────────── */
+.radios { display: flex; flex-wrap: wrap; align-items: center; min-height: 40px; }
+.radios label { display: flex; align-items: flex-start; margin: 0 16px 0 0; padding-right: 2px;
+  cursor: pointer; position: relative; font-size: 16px; line-height: 25.6px; }
+/* el círculo de verdad queda escondido (pero se puede elegir con el teclado) */
+.radios input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+.radios .circ { width: 16px; height: 16px; margin: 5.6px 0 2px; border-radius: 50%; flex: none;
+  background: rgba(232,234,240,.2); display: grid; place-items: center; transition: background .2s; }
+.radios .circ::after { content: ""; width: 14px; height: 14px; border-radius: 50%; background: rgb(14,17,21);
+  transition: all .2s cubic-bezier(.2,.8,.4,1); }
+.radios input:checked + .circ { background: var(--acento); }
+.radios input:checked + .circ::after { width: 6px; height: 6px; background: rgb(240,242,246); }
+.radios input:focus-visible + .circ { outline: 2px solid var(--acento); outline-offset: 2px; }
+.radios label span:last-child { margin-left: 8px; position: relative; top: 1px; font-family: var(--st); }
+
+/* ── Desplegable VER ─────────────────────────────────────────────────────── */
+/* un <select> de verdad (en el celular abre la lista del teléfono) con el
+   aspecto de la caja de Streamlit */
+.ver select { display: block; width: 100%; height: 40px; margin: 0; padding: 0 40px 0 13px;
+  appearance: none; -webkit-appearance: none; border: 1px solid var(--sup); border-radius: 8px;
+  background: var(--sup) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23e8eaf0' transform='rotate(270 12 12)' fill-rule='evenodd' clip-rule='evenodd' d='M9 12C9 12.2652 9.10536 12.5196 9.29289 12.7071L13.2929 16.7071C13.6834 17.0976 14.3166 17.0976 14.7071 16.7071C15.0976 16.3166 15.0976 15.6834 14.7071 15.2929L11.4142 12L14.7071 8.70711C15.0976 8.31658 15.0976 7.68342 14.7071 7.29289C14.3166 6.90237 13.6834 6.90237 13.2929 7.29289L9.29289 11.2929C9.10536 11.4804 9 11.7348 9 12Z'/%3E%3C/svg%3E") no-repeat right 9px center / 24px 24px;
+  color: var(--texto); font-size: 16px; line-height: 22.4px; cursor: pointer;
+  text-overflow: ellipsis; transition: border .2s cubic-bezier(.2,.8,.4,1); }
+.ver select:focus { outline: none; border-color: var(--acento); }
+.ver option { background: var(--bg); color: var(--texto); }
+
+/* ── Pestañas ────────────────────────────────────────────────────────────── */
+.pestanas { position: relative; }
+.pestanas [role="tablist"] { display: flex; gap: 16px; overflow-x: auto; scrollbar-width: none;
+  position: relative; padding-bottom: 2px; margin-bottom: -2px;
+  background: linear-gradient(rgba(232,234,240,.1), rgba(232,234,240,.1)) no-repeat left bottom / 100% 2px; }
+.pestanas [role="tablist"]::-webkit-scrollbar { display: none; }
+.pestanas [role="tab"] { flex: none; min-height: 44px; padding: 0; margin: 0; border: 0; background: none;
+  cursor: pointer; color: var(--texto); font-family: 'Bebas Neue', sans-serif; font-size: 1.05rem;
+  letter-spacing: 1.5px; line-height: 1.6; white-space: nowrap; position: relative; }
+.pestanas [role="tab"]:hover, .pestanas [role="tab"][aria-selected="true"] { color: var(--acento); }
+.pestanas [role="tab"][aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0;
+  bottom: -2px; height: 2px; background: var(--acento); }
+.pestanas [role="tab"]:focus-visible { outline: 2px solid var(--acento); outline-offset: -2px; }
+/* flechas para correr las pestañas cuando no entran (celular) */
+.pestanas .flecha { position: absolute; top: 0; height: 44px; width: 40px; border: 0; padding: 0; cursor: pointer;
+  display: grid; place-items: center; color: rgba(232,234,240,.6); z-index: 1; }
+.pestanas .flecha svg { width: 24px; height: 24px; fill: currentColor; }
+.pestanas .flecha.der { right: 0; justify-items: end; background: linear-gradient(to right, rgba(10,12,15,0), var(--bg) 60%); }
+.pestanas .flecha.izq { left: 0; justify-items: start; background: linear-gradient(to left, rgba(10,12,15,0), var(--bg) 60%); }
+.panel { padding-top: 1rem; display: flex; flex-direction: column; gap: 1rem; }
+
+.nota { font-size:.78rem; color:var(--apagado); margin:4px 0 10px; font-family: var(--st); line-height: 1.6; }
+
+/* ── Números grandes ─────────────────────────────────────────────────────── */
 .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin:6px 0 14px; }
 .kpi { background:var(--sup); border:1px solid var(--borde); border-radius:10px; padding:12px 10px; text-align:center; }
 .kpi .v { font-family:'Bebas Neue',sans-serif; font-size:2.3rem; line-height:1; letter-spacing:1px; }
 .kpi .l { font-family:'DM Mono',monospace; font-size:.68rem; letter-spacing:1.5px; color:var(--apagado);
   margin-top:6px; text-transform:uppercase; }
 
-.nota { font-size:.78rem; color:var(--apagado); margin:4px 0 10px; }
-
-/* Anillos "X de Y" */
+/* ── Anillos "X de Y" ────────────────────────────────────────────────────── */
 .anillos { display:grid; grid-template-columns:repeat(auto-fit,minmax(132px,1fr)); gap:10px; margin:4px 0 14px; }
 .anillo { background:var(--sup); border:1px solid var(--borde); border-radius:12px; padding:14px 8px 12px; text-align:center; }
 .anillo .r { width:104px; height:104px; margin:0 auto; border-radius:50%; position:relative;
@@ -50,20 +142,25 @@ h3 { font-size: 1.35rem; line-height: 1.2; margin: .6rem 0 0; padding: .5rem 0 1
 .anillo .c .de { display:block; font-family:'DM Mono',monospace; font-size:.74rem; color:var(--texto); letter-spacing:0; margin-top:2px; }
 .anillo .c small { display:block; font-family:'DM Mono',monospace; font-size:.68rem; color:var(--apagado);
   letter-spacing:1px; margin-top:3px; }
-.anillo .l { color:var(--texto); font-size:.8rem; margin-top:9px; line-height:1.25; }
+.anillo .l { color:var(--texto); font-size:.8rem; margin-top:9px; line-height:1.25; font-family: var(--st); }
 .anillo .l i { display:block; font-style:normal; font-family:'DM Mono',monospace; font-size:.64rem;
   letter-spacing:1.2px; color:var(--apagado); text-transform:uppercase; }
 
 /* Tablet parada: los gráficos lado a lado no entran, van uno abajo del otro */
 @media (max-width: 860px) {
-  .columnas, .columnas.c-1-2 { grid-template-columns: 1fr; gap: 1rem; }
+  .columnas { flex-wrap: wrap; }
+  .columnas > *, .columnas.c-1-1 > *, .columnas.c-1-2 > :first-child, .columnas.c-1-2 > :last-child,
+  .columnas.chico.c-1-2 > :first-child, .columnas.chico.c-1-2 > :last-child { width: 100%; }
   .kpis:has(> .kpi:nth-child(6)) { grid-template-columns:repeat(3,1fr); }
 }
 
 @media (max-width: 640px) {
-  .contenedor { padding-left:.8rem; padding-right:.8rem; }
+  .contenedor { padding-left:.8rem; padding-right:.8rem; padding-top: calc(4rem + 1rem); }
   .enc img { height:42px; } .enc .t { font-size:1.5rem; letter-spacing:3px; }
   .kpis, .kpis:has(> .kpi:nth-child(6)) { grid-template-columns:repeat(2,1fr); }
   .kpi .v { font-size:1.9rem; }
   .anillos { grid-template-columns:repeat(2,1fr) !important; }
 }
+
+/* links en el texto (el color del tema de Streamlit) */
+.contenedor a { color: var(--acento); }
