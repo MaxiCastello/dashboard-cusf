@@ -7,10 +7,11 @@
 // Criterio de los números: primero "X de Y" y después el porcentaje, sin
 // jerga y sin decir si estuvo bien o mal.
 import { etiqueta, resultado, tacklesTemporada } from "./calculos.js";
-import { conSigno, unDecimal } from "./formato.js";
-import { acumulado, dona, pesas, piruletas } from "./graficos.js";
-import { anillos, html, kpis } from "./piezas.js";
-import { ACENTO, MAL, NEUTRO, RIVAL, UNI } from "./tema.js";
+import { conSigno, pct, unDecimal, xdey } from "./formato.js";
+import { acumulado, dona, lineas, pesas, piruletas } from "./graficos.js";
+import { anillos, html, kpis, tabla } from "./piezas.js";
+import { o } from "./python.js";
+import { ACENTO, AVISO, MAL, NEUTRO, RIVAL, UNI } from "./tema.js";
 
 // ── Lo que usan varias pestañas ─────────────────────────────────────────────
 
@@ -79,5 +80,56 @@ export function resumen(lz, t) {
     col.titulo("Los que más tacklearon");
     col.grafico(piruletas(top.map((j) => j.nombre), top.map((j) => j.pos + j.neu + j.neg)));
     nota(col, "Tackles hechos (positivos, neutrales y negativos).");
+  }
+}
+
+// ── Partido a partido ───────────────────────────────────────────────────────
+
+export function evolucion(lz, t) {
+  const ps = t.partidos;
+  if (t.planilla) {
+    nota(lz, "De 2025 sólo hay totales de la temporada: no se puede ver partido a partido, " +
+      "salvo los tackles (pestaña TACKLES) y las chances en 22 (pestaña PUNTOS).");
+    return;
+  }
+  if (!ps.length) return;
+  // `_intentos(...) or "—"`: sin tackles (0) va la raya
+  const filas = ps.map((p) => [etiqueta(p, true), `${resultado(p)} ${p.score_uni}–${p.score_rival}`,
+    xdey(p.line.uGan, p.line.uLan), xdey(p.scrum.uGan, p.scrum.uLan), pen(p), o(intentos(p.tackles), "—")]);
+  lz.html(tabla(["Partido", "Resultado", "Line propio", "Scrum propio", "Penales UNI", "Tackles"], filas));
+  if (ps.length < 2) return;
+  const x = ejex(ps), tot = t.totales, n = ps.length;
+
+  lz.titulo("Formaciones propias ganadas, partido a partido");
+  // una pestaña por formación y el gráfico a todo el ancho: con muchos
+  // partidos, tres gráficos lado a lado no dejan leer los rivales
+  const formas = [["Line", "line", "uLan"], ["Scrum", "scrum", "uLan"], ["Salidas", "salida", "uPro"]];
+  lz.pestanas(formas.map(([r]) => r)).forEach((pestana, i) => {
+    const [, k, lan] = formas[i];
+    const rlan = lan === "uLan" ? "rLan" : "rPro";
+    const series = [["UNI", "uGan", lan, UNI], ["Rival", "rGan", rlan, RIVAL]].map(([nombre, g, l, color]) =>
+      [nombre, ps.map((p) => (p[k][l] ? pct(p[k][g], p[k][l]) : null)), color, ps.map((p) => xdey(p[k][g], p[k][l]))]);
+    const f = tot[k];
+    const refs = [[f[lan] ? pct(f.uGan, f[lan]) : null, "UNI en la temporada", UNI]];
+    if (k !== "salida") refs.push([100, "Objetivo: 100%", AVISO]);
+    pestana.grafico(lineas(x, series, { alto: 320, porCiento: true, referencias: refs }));
+  });
+  nota(lz, "Arriba se elige Line, Scrum o Salidas. La línea punteada verde es UNI sumando toda la temporada; " +
+    "la amarilla, el objetivo. Pasá el dedo o el mouse por un punto para ver el X de Y.");
+
+  const [c1, c2] = lz.columnas(2, "large");
+  c1.titulo("Puntos por partido");
+  c1.grafico(lineas(x, [["UNI", ps.map((p) => p.score_uni), UNI, null], ["Rival", ps.map((p) => p.score_rival), RIVAL, null]],
+    { referencias: [[tot.score_uni / n, "Promedio UNI", UNI]] }));
+  c2.titulo("Penales cometidos");
+  c2.grafico(lineas(x, [["UNI", ps.map((p) => pen(p)), UNI, null], ["Rival", ps.map((p) => pen(p, "rival")), RIVAL, null]],
+    { referencias: [[pen(tot) / n, "Promedio UNI", UNI], [10, "Objetivo: menos de 10", AVISO]] }));
+  const conTk = ps.filter((p) => p.tackles.length);
+  if (conTk.length > 1) {
+    lz.titulo("Tackles completados, partido a partido");
+    const jug = tacklesTemporada(ps);
+    lz.grafico(lineas(ejex(conTk), [["Completados", conTk.map((p) => pct(hechos(p.tackles), intentos(p.tackles))), UNI,
+      conTk.map((p) => xdey(hechos(p.tackles), intentos(p.tackles)))]],
+    { alto: 260, porCiento: true, referencias: [[pct(hechos(jug), intentos(jug)), "Temporada", UNI]] }));
   }
 }

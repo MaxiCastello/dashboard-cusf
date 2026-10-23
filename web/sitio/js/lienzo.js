@@ -9,6 +9,7 @@
 // (pruebas/exportar_secciones.py). EnPagina además la dibuja en la página
 // (y anota lo mismo: las pruebas de pantalla lo leen).
 import { porcentajeCss } from "./formato.js";
+import { pestanas } from "./controles.js";
 import { CONFIG, dibujar } from "./graficos.js";
 import { html, poner } from "./piezas.js";
 
@@ -73,6 +74,9 @@ const pesosDe = (spec) => (typeof spec === "number" ? Array(spec).fill(1) : spec
 const ESPACIO = { large: 4, medium: 2.5, small: 1 };
 
 // Lo mismo, dibujado en `el` (un elemento con las piezas una abajo de la otra).
+// Los gráficos de una pestaña interna escondida, hasta que se la muestre.
+const esperando = new WeakMap();
+
 // Los gráficos que Plotly todavía está dibujando (dibujar() es asíncrono).
 const pendientes = new Set();
 export const todoDibujado = () => Promise.all([...pendientes]);
@@ -110,10 +114,15 @@ export class EnPagina extends Registro {
     if (fig === null) return;
     super.grafico(fig);
     const div = this.poner(html`<div class="grafico"></div>`);
-    // si Plotly falla, a la consola (las pruebas de pantalla la miran)
-    const p = dibujar(div, fig).catch((e) => console.error("No se pudo dibujar un gráfico:", e));
-    pendientes.add(p);
-    p.finally(() => pendientes.delete(p));
+    const ahora = () => {
+      // si Plotly falla, a la consola (las pruebas de pantalla la miran)
+      const p = dibujar(div, fig).catch((e) => console.error("No se pudo dibujar un gráfico:", e));
+      pendientes.add(p);
+      p.finally(() => pendientes.delete(p));
+    };
+    const oculto = div.closest("[hidden]");   // en una pestaña interna que no se ve
+    if (oculto) esperando.set(oculto, [...(esperando.get(oculto) ?? []), ahora]);
+    else ahora();
   }
 
   // Como Streamlit: cada columna arranca en su parte del ancho menos el
@@ -135,10 +144,18 @@ export class EnPagina extends Registro {
     return new EnPagina(this.poner(html`<div class="bloque"></div>`), this.llamadas);
   }
 
-  // (las pestañas internas y el desplegable se dibujan desde la pestaña
-  // PARTIDOS y PENALES de la fase 4: hasta entonces, que no pase en silencio)
-  pestanas() {
-    throw new Error("EnPagina.pestanas(): todavía no");
+  // Pestañas internas (ej. Line / Scrum / Salidas): el Python dibuja las tres
+  // de una; acá se anota todo en el orden del Python, pero el gráfico de una
+  // pestaña escondida espera a que se la muestre (Plotly, en un lugar
+  // escondido, dibuja con ancho 0).
+  pestanas(rotulos) {
+    this.anotar({ f: "tabs", rotulos: [...rotulos] });
+    const cont = this.poner(html`<div class="internas"></div>`);
+    pestanas(cont, rotulos, (i, panel) => {
+      for (const f of esperando.get(panel) ?? []) f();
+      esperando.delete(panel);
+    });
+    return [...cont.querySelectorAll('[role="tabpanel"]')].map((p) => new EnPagina(p, this.llamadas));
   }
 
   desplegable() {

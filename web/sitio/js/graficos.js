@@ -160,3 +160,33 @@ export function piruletas(etiquetas, valores, { color = UNI, alto = null, sufijo
   // `alto or ...` en Python: un alto 0 también toma el de la cuenta
   return grafico({ data, layout }, alto || 50 + 34 * etiquetas.length);
 }
+
+// series: [[nombre, ys, color, textos del hover | null]]; referencias:
+// [[valor, texto, color]] -> línea punteada (ej. la temporada), como
+// fig.add_hline() de plotly: una forma y su rótulo.
+export function lineas(x, series, { alto = 300, porCiento = false, referencias = [] } = {}) {
+  const data = series.map(([nombre, ys, color, hov]) => ({
+    // `hov or ys` de Python: sin textos (o una lista vacía), los valores
+    connectgaps: true, customdata: hov?.length ? hov : ys, hovertemplate: "%{x}<br>" + nombre + ": %{customdata}<extra></extra>",
+    line: { color, width: 3 }, marker: { color, line: { color: "#0a0c0f", width: 2 }, size: 9 },
+    mode: "lines+markers", name: nombre, x, y: ys, type: "scatter",
+  }));
+  const layout = {};
+  // el rótulo de la primera referencia a la izquierda y el de la segunda a la
+  // derecha: si las dos líneas quedan cerca, los textos no se pisan
+  referencias.forEach(([valor, txt, color], i) => {
+    if (valor === null || valor === undefined) return;
+    const lado = i === 0 ? "left" : "right";
+    (layout.shapes ??= []).push({
+      line: { color, dash: "dot", width: 1.5 }, opacity: 0.7, type: "line",
+      x0: 0, x1: 1, xref: "x domain", y0: valor, y1: valor, yref: "y",
+    });
+    (layout.annotations ??= []).push({
+      font: { color, size: 11 }, showarrow: false, text: txt, x: lado === "left" ? 0 : 1, xanchor: lado,
+      xref: "x domain", y: valor, yanchor: "bottom", yref: "y",
+    });
+  });
+  if (porCiento) layout.yaxis = { range: [0, 108], ticksuffix: "%" };
+  Object.assign(layout, { xaxis: { showgrid: false }, legend: { y: 1.02, yanchor: "bottom", x: 0 }, margin: { t: 34 } });
+  return grafico({ data, layout }, alto);
+}

@@ -6,6 +6,7 @@
 // con etiquetas se ve como texto y no se ejecuta (el lint sólo deja poner
 // en innerHTML lo que sale de html`...`).
 import { esc, pct } from "./formato.js";
+import { str } from "./python.js";
 import { SUP2, TEXTO } from "./tema.js";
 
 class Html extends String {}
@@ -46,4 +47,11 @@ export function anillos(items, columnas = null) {
   });
   const fijo = columnas ? html` style="grid-template-columns:repeat(${columnas},1fr)"` : "";
   return html`<div class="anillos"${fijo}>${partes}</div>`;
+}
+
+// Tabla simple; la primera columna a la izquierda. Todo se escapa (cada
+// celda pasa por str(), como esc(str(v)) en el Python).
+export function tabla(columnas, filas) {
+  return html`<div class="tabla-scroll"><table class="t"><thead><tr>${columnas.map((c) => html`<th>${str(c)}</th>`)}</tr></thead><tbody>${
+    filas.map((f) => html`<tr>${f.map((v) => html`<td>${str(v)}</td>`)}</tr>`)}</tbody></table></div>`;
 }

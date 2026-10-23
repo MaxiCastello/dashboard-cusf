@@ -173,6 +173,22 @@ h3 { font-size: 1.35rem; line-height: 1.2; letter-spacing: -0.005em; margin-top:
 .anillo .l i { display:block; font-style:normal; font-family:'DM Mono',monospace; font-size:.64rem;
   letter-spacing:1.2px; color:var(--apagado); text-transform:uppercase; }
 
+/* ── Tablas propias ──────────────────────────────────────────────────────── */
+/* lo que Streamlit le pone a una tabla de un markdown (medido): un borde
+   finito en cada celda, una raya arriba de cada fila, 1rem abajo; después,
+   lo de estilo.py */
+.md table { border-collapse: collapse; margin: 0 0 1rem; }
+.md table tr { border-top: 1px solid rgba(232,234,240,.1); }
+.md table th, .md table td { border: 1px solid rgba(232,234,240,.1); vertical-align: middle; }
+table.t { width:100%; border-collapse:collapse; font-size:.86rem; }
+table.t th { font-family:'DM Mono',monospace; font-weight:500; font-size:.7rem; letter-spacing:1px;
+  color:var(--apagado); text-align:right; padding:6px 6px; border-bottom:1px solid var(--borde); }
+table.t td { padding:7px 6px; text-align:right; border-bottom:1px solid var(--sup2);
+  font-family:'DM Mono',monospace; }
+table.t td { white-space:nowrap; }
+table.t th:first-child, table.t td:first-child { text-align:left; font-family:'DM Sans',sans-serif; }
+.tabla-scroll { overflow-x:auto; }
+
 /* Tablet parada: los gráficos lado a lado no entran, van uno abajo del otro */
 @media (max-width: 860px) {
   .columnas { flex-wrap: wrap; }
