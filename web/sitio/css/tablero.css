@@ -175,6 +175,15 @@ table.objetivos td.ok { color:var(--uni); background:rgba(0,200,83,.10); }
 table.objetivos td.no { color:#ff6b81; background:rgba(255,23,68,.10); }
 table.objetivos td.sd { color:var(--apagado); font-size:.75rem; }
 
+/* ── La tabla de datos (st.dataframe), medida en Streamlit ───────────────── */
+.datos .caja { border: 1px solid rgba(232,234,240,.1); border-radius: 8px; overflow: hidden; }
+.datos .scroll { height: 100%; overflow: auto; scrollbar-width: thin; scrollbar-color: transparent transparent; }
+.datos .scroll:hover { scrollbar-color: rgba(232,234,240,.3) transparent; }
+.datos canvas { position: sticky; top: 0; left: 0; display: block; }
+.datos .relleno { margin-top: 0; }
+/* la tabla de verdad, para el lector de pantalla: no se ve */
+.para-lector { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
 /* ── Desplegable (st.expander), medido en Streamlit ──────────────────────── */
 .expander { border: 1px solid rgba(232,234,240,.2); border-radius: 8px; }
 .expander summary { list-style: none; display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 4px 12px;

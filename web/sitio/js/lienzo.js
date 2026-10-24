@@ -10,8 +10,9 @@
 // (y anota lo mismo: las pruebas de pantalla lo leen).
 import { porcentajeCss } from "./formato.js";
 import { pestanas } from "./controles.js";
+import { tablaDatos } from "./tablas.js";
 import { CHEVRON_DER, FLECHA_ABAJO } from "./iconos.js";
-import { CONFIG, dibujar } from "./graficos.js";
+import { CONFIG, dibujar, redibujosHechos } from "./graficos.js";
 import { html, poner } from "./piezas.js";
 
 export class Registro {
@@ -56,6 +57,11 @@ export class Registro {
     return this.hijo();
   }
 
+  // st.dataframe(df[columnas], height=alto, column_config=config)
+  tablaDatos(columnas, filas, alto, config) {
+    this.anotar({ f: "dataframe", columnas: [...columnas], filas: structuredClone(filas), alto, column_config: structuredClone(config) });
+  }
+
   // st.tabs(rotulos): uno por pestaña
   pestanas(rotulos) {
     this.anotar({ f: "tabs", rotulos: [...rotulos] });
@@ -80,7 +86,8 @@ const esperando = new WeakMap();
 
 // Los gráficos que Plotly todavía está dibujando (dibujar() es asíncrono).
 const pendientes = new Set();
-export const todoDibujado = () => Promise.all([...pendientes]);
+// (y los que se vuelven a dibujar porque llegó una letra: graficos.js)
+export const todoDibujado = () => Promise.all([...pendientes, redibujosHechos()]);
 
 // Lo que se anotó al dibujar en cada elemento (para las pruebas de pantalla:
 // prueba_fase4.py lo compara con el Python).
@@ -158,6 +165,13 @@ export class EnPagina extends Registro {
       esperando.delete(panel);
     });
     return [...cont.querySelectorAll('[role="tabpanel"]')].map((p) => new EnPagina(p, this.llamadas));
+  }
+
+  // st.dataframe(...): una tabla que se puede ordenar tocando la columna
+  tablaDatos(columnas, filas, alto, config) {
+    super.tablaDatos(columnas, filas, alto, config);
+    const div = this.poner(html`<div class="datos"></div>`);
+    tablaDatos(div, columnas, filas, alto, config);
   }
 
   // st.expander(rotulo): cerrado al empezar, como en Streamlit

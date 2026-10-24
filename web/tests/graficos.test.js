@@ -58,6 +58,22 @@ test("pesas(): el alto sale de la cantidad de partidos, y sin textos no hay reng
   assert.deepEqual(pesas(["a", "b"], [1, 5], [4, 2], { textos: ["x", "y"] }).data.at(-1).x, [4, 5]);
 });
 
+// Cada letra que recibe Plotly lleva al final la llave del caché de medidas
+// (ver dibujar()): se la saca, y se mira que esté en todas.
+function sinLlave(o, llave, vistas = []) {
+  if (Array.isArray(o)) o.forEach((v) => sinLlave(v, llave, vistas));
+  else if (o && typeof o === "object") {
+    for (const [k, v] of Object.entries(o)) {
+      if (k === "family") {
+        vistas.push(v);
+        assert.ok(v.endsWith(`, ${llave}`), `letra sin la llave: ${v}`);
+        o[k] = v.slice(0, -`, ${llave}`.length);
+      } else sinLlave(v, llave, vistas);
+    }
+  }
+  return vistas;
+}
+
 test("dibujar(): a Plotly le llega la figura con la letra que pone Streamlit, el tema y la config; la figura no cambia", async () => {
   const llamadasPlotly = [];
   globalThis.window = { Plotly: { newPlot: async (...a) => llamadasPlotly.push(a) } };
@@ -67,6 +83,9 @@ test("dibujar(): a Plotly le llega la figura con la letra que pone Streamlit, el
     const el = {};
     await dibujar(el, fig);
     const [[elPlotly, data, layout, config]] = llamadasPlotly;
+    // sin letras que lleguen (no hay página), la llave es la del principio
+    assert.ok(sinLlave(layout, "cusf-letras-0").length >= 2);
+    sinLlave(data, "cusf-letras-0");
     assert.equal(elPlotly, el);
     assert.deepEqual(data, copia.data);
     assert.deepEqual(layout, { ...copia.layout, font: FUENTE_STREAMLIT, template: TEMA });

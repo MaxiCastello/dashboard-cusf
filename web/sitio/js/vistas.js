@@ -6,9 +6,9 @@
 //
 // Criterio de los números: primero "X de Y" y después el porcentaje, sin
 // jerga y sin decir si estuvo bien o mal.
-import { etiqueta, resultado, sumar, tacklesTemporada } from "./calculos.js";
-import { coma, conSigno, pct, unDecimal, xdey } from "./formato.js";
-import { acumulado, barras, chances22, dona, lineas, mapaCalor, mariposa, pesas, piruletas, sol } from "./graficos.js";
+import { etiqueta, pjTexto, resultado, sumar, tacklesTemporada } from "./calculos.js";
+import { coma, conSigno, fijo, pct, unDecimal, xdey } from "./formato.js";
+import { acumulado, apiladas, barras, chances22, dona, lineas, mapaCalor, mariposa, pesas, piruletas, sol } from "./graficos.js";
 import { aclarar, anillos, html, kpis, tabla } from "./piezas.js";
 import { MIN_AMARILLA, MIN_ROJA, OBJETIVOS, evaluar, minutosConUnoMenos, temporada } from "./objetivos.js";
 import { capitalizar, enteroDeTexto, o, soloCifras, str } from "./python.js";
@@ -18,6 +18,9 @@ import { ACENTO, AVISO, MAL, NEUTRO, RIVAL, UNI } from "./tema.js";
 
 // Situaciones de los penales: su color (Map: la situación viene de los datos)
 const SIT_COLOR = new Map([["Scrum", ACENTO], ["Line", "#9fb8ff"], ["Ruck", UNI], ["Maul", "#7be0a5"], ["Juego", AVISO]]);
+
+// Tipos de tackle (estilo.py: TK, TK_NOMBRE)
+const TK = [["pos", "Positivos", UNI], ["neu", "Neutrales", NEUTRO], ["neg", "Negativos", AVISO], ["err", "Errados", MAL]];
 
 // Formas de anotar: el mismo color en la torta de UNI y en la del rival
 const FORMAS = [["Tries", 5, "tries", UNI], ["Tries penales", 7, "triesp", "#7be0a5"], ["Conversiones", 2, "conv", ACENTO],
@@ -425,4 +428,67 @@ export function objetivos(lz, t) {
     cuerpo}</tbody></table></div>`);
   nota(lz, "Las chances en 22 se cargan a mano (Uni-Dat no las registra) y las salidas del rival que " +
     "se quedó UNI sólo están en los partidos cargados en Uni-Dat: por eso a algunos les falta el dato.");
+}
+
+// ── Tackles ─────────────────────────────────────────────────────────────────
+
+// La configuración de las columnas de la tabla, tal como la anota Streamlit
+// (st.column_config.TextColumn("PJ", width=210) y la ProgressColumn).
+const CONFIG_TACKLES = {
+  PJ: { label: "PJ", width: 210, help: null, disabled: null, required: null, pinned: null, default: null,
+    type_config: { type: "text", max_chars: null, validate: null } },
+  Completados: { label: "Completados", width: null, help: null, pinned: null,
+    type_config: { type: "progress", format: "%d%%", min_value: 0, max_value: 100, step: null, color: null } },
+};
+
+export function tackles(lz, t, partido = null) {
+  const ps = partido ? [partido] : t.partidos;
+  const jug = tacklesTemporada(ps);
+  if (!jug.length) {
+    nota(lz, "No hay tackles cargados para estos partidos.");
+    return;
+  }
+  const tipos = Object.fromEntries(TK.map(([k]) => [k, jug.reduce((s, j) => s + j[k], 0)]));
+  const total = intentos(jug), hech = hechos(jug);
+  const conTk = ps.filter((p) => p.tackles.length).length;
+  const items = [[total, "Intentos de tackle", null], [`${hech} de ${total}`, "Completados", UNI], [tipos.err, "Errados", MAL]];
+  if (conTk > 1) items.splice(1, 0, [fijo(total / conTk, 0), "Intentos por partido", null]);
+  lz.html(kpis(items));
+
+  const [c1, c2] = lz.columnas(2, "large");
+  c1.titulo("Cómo fueron");
+  c1.grafico(dona(TK.map(([, n]) => n), TK.map(([k]) => tipos[k]), TK.map(([, , c]) => c), `${pct(hech, total)}%`,
+    `completados · ${hech} de ${total}`, 300));
+  nota(c1, "Un tackle negativo se completó igual; el único no completado es el errado (como en el Tackle Tracker).");
+  if (partido && partido.tackles.some((f) => f.pt || f.st)) {
+    c2.titulo("Por tiempo");
+    const s = (k) => partido.tackles.reduce((a, f) => a + f[k], 0);
+    c2.html(anillos([["Completados", s("pt") - s("pt_err"), s("pt"), UNI, "1° tiempo"],
+      ["Completados", s("st") - s("st_err"), s("st"), UNI, "2° tiempo"]]));
+  }
+  const top = jug.filter((j) => hechos([j])).sort((x, y) => hechos([y]) - hechos([x])).slice(0, 8);
+  c2.titulo("Los que más tacklearon");
+  c2.grafico(piruletas(top.map((j) => j.nombre), top.map((j) => hechos([j]))));
+
+  lz.titulo("Por jugador");
+  const int1 = (j) => intentos([j]);
+  const orden = jug.filter(int1).sort((x, y) => int1(y) - int1(x)).slice(0, 18);
+  lz.grafico(apiladas(orden.map((j) => j.nombre), TK.map(([k, n, c]) => [n, orden.map((j) => j[k]), c])));
+  if (jug.length > orden.length) nota(lz, `Los ${orden.length} con más intentos; la tabla de abajo tiene a los ${jug.length}.`);
+
+  // la tabla: ordenada por Hechos y Completados, de mayor a menor (sort_values
+  // de pandas: estable; sin intentos no hay porcentaje, y el vacío va al final)
+  const filas = jug.map((j) => {
+    const h = hechos([j]);
+    return { Jugador: j.nombre, PJ: pjTexto(j), Hechos: h, Errados: j.err, Completados: int1(j) ? pct(h, int1(j)) : null,
+      Positivos: j.pos, Neutrales: j.neu, Negativos: j.neg };
+  });
+  const desc = (a, b) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : b - a);
+  filas.sort((a, b) => desc(a.Hechos, b.Hechos) || desc(a.Completados, b.Completados));
+  const cols = ["Jugador", "PJ", "Hechos", "Errados", "Completados", "Positivos", "Neutrales", "Negativos"].filter((c) => !partido || c !== "PJ");
+  lz.tablaDatos(cols, filas.map((f) => cols.map((c) => f[c])), Math.min(38 + 35 * filas.length, 740), CONFIG_TACKLES);
+  if (!partido) {
+    nota(lz, "PJ = partidos en los que estuvo en la lista del Tackle Tracker, aunque no haya tackleado. " +
+      "Titular: jugó con la camiseta 1 a 15 en ese partido; suplente: de la 16 en adelante.");
+  }
 }

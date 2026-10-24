@@ -52,15 +52,68 @@ function seguirAncho(el) {
   mirar.observe(el);
 }
 
+// Plotly acomoda márgenes y leyendas midiendo los textos, y no se entera si
+// la letra llega después (con poca señal): se queda con la medida de la de
+// reemplazo y corta los nombres. Encima guarda cada medida (por texto y
+// estilo, para todos los gráficos de la página) y la reusa aunque ya haya
+// llegado la letra. Por eso:
+// - cuando termina de llegar una letra, se vuelven a dibujar de cero los
+//   gráficos dibujados antes;
+// - a cada letra de la figura se le suma al final una que no existe y que
+//   cambia cada vez que llega una (el navegador usa la primera que tiene: se
+//   ve igual), así Plotly no reusa medidas hechas con la de reemplazo, ni en
+//   esos gráficos ni en los que se dibujan después (otra pestaña).
+// Medido con las letras demoradas: queda igual, punto por punto, que si
+// hubieran estado desde el principio (letras_tarde.py, en las pruebas).
+let letrasLlegadas = 0;
+const conLetras = new Map();   // gráfico: cuántas letras habían llegado al dibujarlo
+const enCurso = new WeakMap(); // gráfico: su último dibujo (no se empieza otro encima)
+const redibujos = new Set();   // los redibujos que faltan terminar
+let redibujo = null;
+globalThis.document?.fonts?.addEventListener("loadingdone", (e) => {
+  letrasLlegadas += e.fontfaces.length;
+  redibujo ??= requestAnimationFrame(() => {
+    redibujo = null;
+    for (const [el, n] of conLetras) {
+      if (!el.isConnected) conLetras.delete(el);
+      else if (n < letrasLlegadas) {
+        conLetras.set(el, letrasLlegadas);   // (no se lo vuelve a pedir mientras espera)
+        const p = enCurso.get(el).then(() => el.isConnected && dibujar(el, dibujadas.get(el)))
+          .catch((err) => console.error("No se pudo dibujar un gráfico:", err));
+        redibujos.add(p);
+        p.finally(() => redibujos.delete(p));
+      }
+    }
+  });
+});
+// Para todoDibujado() de lienzo.js (y las pruebas de pantalla).
+export const redibujosHechos = () => Promise.all([...redibujos]);
+
+function conLlave(o, llave) {
+  if (Array.isArray(o)) o.forEach((v) => conLlave(v, llave));
+  else if (o && typeof o === "object") {
+    for (const [k, v] of Object.entries(o)) {
+      if (k === "family" && typeof v === "string") o[k] = `${v}, ${llave}`;
+      else if (k === "family" && Array.isArray(v)) o[k] = v.map((f) => (typeof f === "string" ? `${f}, ${llave}` : f));
+      else conLlave(v, llave);
+    }
+  }
+  return o;
+}
+
 // Plotly guarda y cambia lo que recibe: le llega una copia, así la figura
 // sigue siendo la que se comparó en las pruebas.
 export function dibujar(el, fig) {
   dibujadas.set(el, fig);
+  for (const viejo of conLetras.keys()) if (!viejo.isConnected) conLetras.delete(viejo);   // los de otro año, ya sacados
+  conLetras.set(el, letrasLlegadas);
   const { data, layout } = structuredClone(fig);
   const w = ancho(el);
-  const hecho = window.Plotly.newPlot(el, data, {
+  const llave = `cusf-letras-${letrasLlegadas}`;
+  const hecho = window.Plotly.newPlot(el, conLlave(data, llave), conLlave({
     ...layout, ...(w ? { width: w } : {}), font: { ...FUENTE_STREAMLIT, ...layout.font }, template: structuredClone(TEMA),
-  }, { ...CONFIG });
+  }, llave), { ...CONFIG });
+  enCurso.set(el, hecho.catch(() => null));
   if (w && typeof ResizeObserver !== "undefined") hecho.then(() => seguirAncho(el));
   return hecho;
 }
@@ -273,4 +326,17 @@ export function sol(etiquetas, padres, valores, colores, alto = 380) {
     textfont: { color: "#0a0c0f", size: 12 }, values: valores, type: "sunburst",
   }];
   return grafico({ data, layout: { margin: { t: 8, b: 8, l: 8, r: 8 } } }, alto);
+}
+
+// Barras horizontales apiladas. capas: [[nombre, valores, color]]
+export function apiladas(etiquetas, capas, alto = null) {
+  const data = capas.map(([nombre, vals, color]) => ({
+    hovertemplate: "%{y}<br>" + nombre + ": %{x}<extra></extra>", marker: { color }, name: nombre, orientation: "h",
+    x: vals, y: etiquetas, type: "bar",
+  }));
+  const layout = {
+    barmode: "stack", bargap: 0.3, yaxis: { autorange: "reversed", showgrid: false },
+    legend: { y: 1.02, yanchor: "bottom", x: 0, traceorder: "normal" }, margin: { t: 34 },
+  };
+  return grafico({ data, layout }, alto || 80 + 28 * etiquetas.length);
 }
