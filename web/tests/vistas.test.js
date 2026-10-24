@@ -9,8 +9,8 @@ import { test } from "node:test";
 
 import * as C from "../sitio/js/calculos.js";
 import { Registro } from "../sitio/js/lienzo.js";
-import * as V from "../sitio/js/vistas.js";
 import { armar } from "./_armar.js";
+import { SECCIONES_TEMPORADA } from "./_vistas.js";
 import { PRUEBAS, filasDe, leer } from "./_referencia.js";
 
 // La temporada de cada pantalla, armada con las cuentas de la página.
@@ -25,8 +25,6 @@ function temporadas(sub) {
 // Lo que se anota pasa por JSON (como la referencia): sin undefined.
 const comoJson = (x) => JSON.parse(JSON.stringify(x));
 
-// Las secciones de la temporada ya pasadas (se suman a medida que se pasan).
-const SECCIONES_TEMPORADA = { resumen: V.resumen, evolucion: V.evolucion, puntos: V.puntos, formaciones: V.formaciones, penales: V.penales, tackles: V.tackles, objetivos: V.objetivos };
 
 for (const sub of ["base", "demo"]) {
   const ts = temporadas(sub);

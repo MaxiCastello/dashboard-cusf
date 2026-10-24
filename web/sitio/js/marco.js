@@ -38,9 +38,22 @@ aria-label="Cerrar el menú">${MENU_CERRAR}</button></div><nav>${links(actual)}<
     mostrar(false);
     abrir.focus();
   });
-  // tocar afuera o Escape: se cierra
+  // tocar afuera o Escape: se cierra. El toque de afuera sólo cierra: no
+  // sigue de largo a lo que está debajo (no cambia el año ni la pestaña sin
+  // querer; el panel no tapa la página). Si el foco estaba en el panel,
+  // vuelve al botón » (cerrado, el panel no se alcanza).
+  const tragar = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
   document.addEventListener("pointerdown", (e) => {
-    if (lateral.classList.contains("abierto") && !lateral.contains(e.target) && !abrir.contains(e.target)) mostrar(false);
+    if (!lateral.classList.contains("abierto") || lateral.contains(e.target) || abrir.contains(e.target)) return;
+    e.preventDefault();   // (y que no se abra una lista, como VER, con el mouse)
+    const conFoco = lateral.contains(document.activeElement);
+    mostrar(false);
+    if (conFoco) abrir.focus({ preventScroll: true });
+    document.addEventListener("click", tragar, { capture: true, once: true });
+    setTimeout(() => document.removeEventListener("click", tragar, { capture: true }), 700);
   });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && lateral.classList.contains("abierto")) {

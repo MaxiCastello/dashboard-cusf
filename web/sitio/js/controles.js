@@ -102,7 +102,13 @@ ${rotulos.map((r, i) => html`<div class="panel" role="tabpanel" id="${id}-p${i}"
   lista.addEventListener("scroll", flechas, { passive: true });
   // se miran la fila y cada pestaña: si la letra llega tarde (font-display:
   // swap), las pestañas cambian de ancho sin que la fila cambie
-  const obs = new ResizeObserver(flechas);
+  const obs = new ResizeObserver(() => {
+    if (lista.isConnected) flechas();
+    else {   // ya no está (otra temporada): se lo suelta (las de adentro nadie las apaga)
+      obs.disconnect();
+      observadores.delete(cont);
+    }
+  });
   for (const el of [lista, ...botones]) obs.observe(el);
   observadores.set(cont, obs);
   document.fonts?.ready.then(flechas);

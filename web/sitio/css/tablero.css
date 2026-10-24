@@ -13,7 +13,9 @@
 * { box-sizing: border-box; }
 /* hidden tiene que ganarle a display:grid / flex */
 [hidden] { display: none !important; }
-html { -webkit-text-size-adjust: 100%; }
+/* la barra de arriba es fija (60px): lo que recibe el foco o se lleva a la
+   vista queda debajo de ella, no tapado */
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 60px; }
 body { margin: 0; background: var(--bg); color: var(--texto);
   font-family: 'DM Sans', system-ui, sans-serif; font-size: 16px; line-height: 1.6; }
 p { margin: 0; }

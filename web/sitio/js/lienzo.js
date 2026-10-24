@@ -139,7 +139,7 @@ export class EnPagina extends Registro {
   // (ver tablero.css). En una variable y no en width: en la tablet parada el
   // CSS las pone a todo el ancho.
   columnas(spec, gap = null) {
-    this.anotar({ f: "columns", spec, gap });
+    super.columnas(spec, gap);   // (lo anota; sus hijos no dibujan)
     const pesos = pesosDe(spec), total = pesos.reduce((s, x) => s + x, 0);
     const esp = ESPACIO[gap] ?? 1;
     // el porcentaje con 4 decimales, como lo escribe Streamlit (33.3333%)
@@ -149,7 +149,7 @@ export class EnPagina extends Registro {
   }
 
   contenedor() {
-    this.anotar({ f: "container", args: [], key: null, type: null });
+    super.contenedor();
     return new EnPagina(this.poner(html`<div class="bloque"></div>`), this.llamadas);
   }
 
@@ -158,7 +158,7 @@ export class EnPagina extends Registro {
   // pestaña escondida espera a que se la muestre (Plotly, en un lugar
   // escondido, dibuja con ancho 0).
   pestanas(rotulos) {
-    this.anotar({ f: "tabs", rotulos: [...rotulos] });
+    super.pestanas(rotulos);
     const cont = this.poner(html`<div class="internas"></div>`);
     pestanas(cont, rotulos, (i, panel) => {
       for (const f of esperando.get(panel) ?? []) f();
@@ -176,7 +176,7 @@ export class EnPagina extends Registro {
 
   // st.expander(rotulo): cerrado al empezar, como en Streamlit
   desplegable(rotulo) {
-    this.anotar({ f: "expander", args: [rotulo], key: null, type: null });
+    super.desplegable(rotulo);
     const d = this.poner(html`<details class="expander"><summary><span class="ico cerrado">${CHEVRON_DER}</span><span class="ico abierto">${
       FLECHA_ABAJO}</span><span class="rot">${rotulo}</span></summary><div class="cuerpo"></div></details>`);
     // un gráfico adentro, cerrado, espera a que se lo abra (como en una pestaña escondida)

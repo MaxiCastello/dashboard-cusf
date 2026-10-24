@@ -46,7 +46,10 @@ function seguirAncho(el) {
   mirar ??= new ResizeObserver((cambios) => {
     for (const { target } of cambios) {
       if (!target.isConnected) mirar.unobserve(target);
-      else if (ancho(target) && ancho(target) !== target._fullLayout?.width) window.Plotly.relayout(target, { width: ancho(target) });
+      else {
+        const w = ancho(target);
+        if (w && w !== target._fullLayout?.width) window.Plotly.relayout(target, { width: w });
+      }
     }
   });
   mirar.observe(el);
@@ -114,7 +117,8 @@ export function dibujar(el, fig) {
     ...layout, ...(w ? { width: w } : {}), font: { ...FUENTE_STREAMLIT, ...layout.font }, template: structuredClone(TEMA),
   }, llave), { ...CONFIG });
   enCurso.set(el, hecho.catch(() => null));
-  if (w && typeof ResizeObserver !== "undefined") hecho.then(() => seguirAncho(el));
+  // (también uno dibujado sin lugar: cuando lo tenga, se le pone ese ancho)
+  if (typeof ResizeObserver !== "undefined") hecho.then(() => seguirAncho(el));
   return hecho;
 }
 

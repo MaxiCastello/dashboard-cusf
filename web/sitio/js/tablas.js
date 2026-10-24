@@ -15,7 +15,7 @@
 // (↓) y otra vez como venía, con la comparación "smart" de Glide. Abajo hay
 // una tabla de verdad, escondida, para el lector de pantalla.
 import { html, poner } from "./piezas.js";
-import { str } from "./python.js";
+import { nulo, str } from "./python.js";
 
 // El tema de Glide que usa Streamlit con los colores del tablero (medido).
 const T = {
@@ -29,7 +29,6 @@ const ALTO_ENC = 36, ALTO_FILA = 35, ANCHO_SIN_MEDIDA = 150;
 
 // Lo que se ve en una celda: un número entero sin ".0" (pandas guarda 86.0
 // cuando la columna tiene algún vacío), vacío si no hay dato.
-const nulo = (v) => v === null || v === undefined;
 const texto = (v) => (nulo(v) ? "" : str(v));
 
 // "%d%%" de Streamlit (sprintf): la parte entera y el signo de por ciento.
