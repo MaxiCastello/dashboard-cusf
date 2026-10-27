@@ -336,6 +336,125 @@ export function tacklesDesdeRegistros(registros, plantilla = null) {
   return [...filas.values()];
 }
 
+// csv.reader de Python (formato "excel": coma, comillas dobles, "" adentro
+// de comillas es una comilla) sobre io.StringIO(texto): los renglones se
+// cortan sólo en \n y el lector se ocupa de \r. Donde el Python corta con
+// csv.Error (un \r suelto en medio de un renglón, un campo de más de
+// 131.072 letras), acá también: tira ErrorCsv.
+export class ErrorCsv extends Error {}
+const LIMITE_CAMPO = 131072;
+
+function* filasCsv(texto) {
+  const renglones = texto.match(/[^\n]*\n|[^\n]+$/g) ?? [];
+  let celdas = [], campo = [], estado = "registro";
+  const guardar = () => {
+    celdas.push(campo.join(""));
+    campo = [];
+  };
+  const sumar = (c) => {
+    if (campo.length >= LIMITE_CAMPO) throw new ErrorCsv("campo demasiado largo");
+    campo.push(c);
+  };
+  for (const renglon of renglones) {
+    // FIN: el final del renglón (después de su último carácter)
+    for (const c of [...letras(renglon), "FIN"]) {
+      const corte = c === "\n" || c === "\r";
+      switch (estado) {
+        case "registro":
+          if (c === "FIN") break;   // renglón vacío: una fila sin celdas
+          if (corte) {
+            estado = "comerFin";
+            break;
+          }
+          estado = "campo";
+        // falls through
+        case "campo":
+          if (corte || c === "FIN") {
+            guardar();
+            estado = c === "FIN" ? "registro" : "comerFin";
+          } else if (c === '"') estado = "comillas";
+          else if (c === ",") guardar();
+          else {
+            sumar(c);
+            estado = "enCampo";
+          }
+          break;
+        case "enCampo":
+          if (corte || c === "FIN") {
+            guardar();
+            estado = c === "FIN" ? "registro" : "comerFin";
+          } else if (c === ",") {
+            guardar();
+            estado = "campo";
+          } else sumar(c);
+          break;
+        case "comillas":
+          if (c === "FIN") break;   // sigue en el renglón que viene (el \n ya se sumó)
+          if (c === '"') estado = "comillaEnComillas";
+          else sumar(c);
+          break;
+        case "comillaEnComillas":
+          if (c === '"') {
+            sumar(c);
+            estado = "comillas";
+          } else if (c === ",") {
+            guardar();
+            estado = "campo";
+          } else if (corte || c === "FIN") {
+            guardar();
+            estado = c === "FIN" ? "registro" : "comerFin";
+          } else {
+            sumar(c);
+            estado = "enCampo";
+          }
+          break;
+        case "comerFin":
+          if (c === "FIN") estado = "registro";
+          else if (!corte) throw new ErrorCsv("salto de renglón en medio de un campo");
+          break;
+      }
+    }
+    if (estado === "registro") {
+      yield celdas;
+      celdas = [];
+    }
+  }
+  // se terminó el texto con un campo abierto (unas comillas sin cerrar)
+  if (campo.length || estado === "comillas") {
+    guardar();
+    yield celdas;
+  }
+}
+
+// leer_csv_tackles de calculos.py: el CSV del Tackle Tracker (nuevo o viejo)
+// -> [registros, plantilla]. Sólo se leen la PLANTILLA y el log de tackles.
+export function leerCsvTackles(texto) {
+  const plantilla = new Map(), registros = [];
+  let seccion = null;
+  for (const celdas of filasCsv(texto.replace(/^\uFEFF+/, ""))) {
+    const primero = celdas.length ? recortar(celdas[0]) : "";
+    if (primero === "PLANTILLA" || primero === "PARTIDO") {
+      seccion = primero;
+      continue;
+    }
+    if (["RESUMEN POR JUGADOR", "TARJETAS", "SUSTITUCIONES"].includes(primero)) {
+      seccion = null;
+      continue;
+    }
+    if (primero === "Tiempo" && celdas.length >= 4) {
+      seccion = "registros";
+      continue;
+    }
+    if (!primero || primero === "Dorsal" || primero === "Rival") continue;
+    if (seccion === "PLANTILLA" && celdas.length > 1 && recortar(celdas[1])) {
+      plantilla.set(primero, recortar(celdas[1]));
+    } else if (seccion === "registros" && celdas.length >= 4) {
+      registros.push({ tiempo: primero, jugador: recortar(celdas[1]), nombre: recortar(celdas[2]), tipo: recortar(celdas[3]) });
+    }
+  }
+  return [registros, plantilla];
+}
+
 // ── Armar partidos ───────────────────────────────────────────────────────────
 
 const conRival = (r) => o(r, "Rival");
