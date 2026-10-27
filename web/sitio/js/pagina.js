@@ -12,12 +12,13 @@
 // Si algo falla al armar (un dato imposible: el Python se cae), no queda la
 // pantalla a medias: se esconde todo y se ve el error (fallo()).
 //
-// FALTA: la pestaña Informe (fase 6).
+// La última pestaña (Informe) arma el PDF: pestana-informe.js.
 import { ANIO_PLANILLA, aniosDisponibles, categoriasDe, etiqueta, temporada, una } from "./calculos.js";
 import { apagarPestanas, desplegable, pestanas, radios } from "./controles.js";
 import { EnPagina } from "./lienzo.js";
 import { encabezado } from "./marco.js";
 import { html, poner } from "./piezas.js";
+import { pestanaInforme } from "./pestana-informe.js";
 import { PLANILLA_2025 } from "./planilla2025.js";
 import { str } from "./python.js";
 import * as V from "./vistas.js";
@@ -113,7 +114,7 @@ export function tablero({ partidos, errorBase = null }) {
       pestanas(cont, PESTANAS_TEMPORADA, seguro((i, panel) => {
         const f = SECCIONES_TEMPORADA[i];
         if (f) f(new EnPagina(panel), t);
-        else enPreparacion(panel, PESTANAS_TEMPORADA[i]);
+        else pestanaInforme(panel, t, estado.cat);
       }));
       return;
     }
@@ -133,7 +134,7 @@ export function tablero({ partidos, errorBase = null }) {
     pestanas(lz.poner(html`<div class="pestanas-partido"></div>`), PESTANAS_PARTIDO, seguro((i, panel) => {
       const f = V.SECCIONES_PARTIDO[i]?.[2];
       if (f) f(new EnPagina(panel), p, t, tp);
-      else enPreparacion(panel, PESTANAS_PARTIDO[i]);
+      else pestanaInforme(panel, t, estado.cat, p);
     }));
   }
 
@@ -148,9 +149,4 @@ function porIdDe(t) {
   const m = new Map();
   for (const p of t.partidos) m.set(p.id, p);
   return m;
-}
-
-// FALTA: lugar de lo que se pasa en la fase 6 (Informe).
-function enPreparacion(panel, que) {
-  poner(panel, html`<p class="nota">${que}: en preparación (todavía se ve en el tablero de siempre).</p>`);
 }

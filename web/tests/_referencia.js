@@ -3,7 +3,7 @@
 // y el repo es público). Si faltan, las pruebas fallan con un aviso: nunca
 // se saltean en silencio.
 import { existsSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, resolve, sep } from "node:path";
 import process from "node:process";
 
 import { leerJson } from "../sitio/js/python.js";
@@ -17,6 +17,15 @@ function leerArchivo(f) {
   }
   // leerJson y no JSON.parse: como la página, sin perder el orden de las claves
   return leerJson(readFileSync(f, "utf8"));
+}
+
+// Una carpeta de salida con datos reales: nunca adentro del repo (es público).
+export function fueraDelRepo(carpeta) {
+  // (en Windows, C:\Users y c:\users son la misma carpeta)
+  const igual = process.platform === "win32" ? (s) => s.toLowerCase() : (s) => s;
+  const repo = igual(resolve(import.meta.dirname, "../..")), dir = resolve(carpeta);
+  if (igual(dir) === repo || igual(dir).startsWith(repo + sep)) throw new Error(`${dir} está adentro del repo (es público): usar dashboard-cusf.pruebas/`);
+  return dir;
 }
 
 // leer("base", "cuentas.json")

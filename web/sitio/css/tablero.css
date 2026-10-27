@@ -209,6 +209,17 @@ table.objetivos td.sd { color:var(--apagado); font-size:.75rem; }
 .kpi .l { font-family:'DM Mono',monospace; font-size:.68rem; letter-spacing:1.5px; color:var(--apagado);
   margin-top:6px; text-transform:uppercase; }
 
+/* ── Botones (como st.button de Streamlit, medido: 40px de alto, borde suave;
+   el principal, del color de acento) ─────────────────────────────────── */
+.botones { display: flex; flex-wrap: wrap; gap: .75rem; }
+.boton { min-height: 40px; padding: 4px 12px; border-radius: 8px; border: 1px solid rgba(232,234,240,.2);
+  background: #0e1115; color: var(--texto); font: 400 1rem/1.6 var(--st); cursor: pointer; }
+.boton:hover { background: rgba(157,166,185,.15); }
+.boton.primario { background: var(--acento); border-color: var(--acento); color: #fff; }
+.boton.primario:hover { background: #2a7de0; }
+.boton:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.boton:disabled { opacity: .6; cursor: wait; }
+
 /* ── Marcador del partido ────────────────────────────────────────────────── */
 .marcador { background:var(--sup); border:1px solid var(--borde); border-radius:12px; padding:14px;
   display:flex; justify-content:center; align-items:center; gap:22px; margin:4px 0 14px; }

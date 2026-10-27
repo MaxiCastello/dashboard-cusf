@@ -27,13 +27,42 @@ const TK = [["pos", "Positivos", UNI], ["neu", "Neutrales", NEUTRO], ["neg", "Ne
 const FORMAS = [["Tries", 5, "tries", UNI], ["Tries penales", 7, "triesp", "#7be0a5"], ["Conversiones", 2, "conv", ACENTO],
   ["Penales a los palos", 3, "palos", "#9fb8ff"], ["Drops", 3, "drop", AVISO]];
 
-const pen = (f, lado = "uni") => f.penales.reduce((s, x) => s + x[lado], 0);
-const hechos = (filas) => filas.reduce((s, j) => s + j.pos + j.neu + j.neg, 0);
-const intentos = (filas) => hechos(filas) + filas.reduce((s, j) => s + j.err, 0);
-const pateo = (f) => [f.puntos.conv_u + f.puntos.palos_u, f.puntos.convt_u + f.puntos.palost_u];
+// (también las usa el informe PDF: informe.js)
+export const pen = (f, lado = "uni") => f.penales.reduce((s, x) => s + x[lado], 0);
+export const hechos = (filas) => filas.reduce((s, j) => s + j.pos + j.neu + j.neg, 0);
+export const intentos = (filas) => hechos(filas) + filas.reduce((s, j) => s + j.err, 0);
+export const pateo = (f) => [f.puntos.conv_u + f.puntos.palos_u, f.puntos.convt_u + f.puntos.palost_u];
 // rótulos del eje de los gráficos: la fecha y el rival, en todos
 const ejex = (ps) => ps.map((p) => etiqueta(p, true));
-const cuantos = (rs, x) => rs.filter((r) => r === x).length;
+export const cuantos = (rs, x) => rs.filter((r) => r === x).length;
+// de mayor a menor, y lo que no tiene valor (null) al final
+export const desc = (a, b) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : b - a);
+
+// De dónde salieron los tries, sumando los partidos: [[origen, UNI, rival]],
+// de más a menos (los empatados, en el orden en que aparecen).
+export function origenesTries(ps) {
+  const orig = new Map();
+  for (const q of ps) {
+    for (const [k, [u, r]] of q.tries_origen ?? []) {
+      if (!orig.has(k)) orig.set(k, [0, 0]);
+      orig.get(k)[0] += u;
+      orig.get(k)[1] += r;
+    }
+  }
+  return [...orig].sort(([, a], [, b]) => (b[0] + b[1]) - (a[0] + a[1])).map(([k, [u, r]]) => [k, u, r]);
+}
+
+// Los penales por situación: [[situación, UNI, rival]], de más a menos (los
+// empatados, en el orden en que aparecen).
+export function porSituacion(pens) {
+  const sits = new Map();
+  for (const f of pens) {
+    if (!sits.has(f.situacion)) sits.set(f.situacion, [0, 0]);
+    sits.get(f.situacion)[0] += f.uni;
+    sits.get(f.situacion)[1] += f.rival;
+  }
+  return [...sits].sort(([, a], [, b]) => (b[0] + b[1]) - (a[0] + a[1])).map(([s, [u, r]]) => [s, u, r]);
+}
 
 export function nota(lz, txt) {
   lz.html(html`<div class="nota">${txt}</div>`);
@@ -209,20 +238,11 @@ export function puntos(lz, t) {
   }
   lz.html(anillos(items));
 
-  // de dónde salieron los tries: en el orden en que aparecen, de más a menos
-  const orig = new Map();
-  for (const q of t.partidos) {
-    for (const [k, [u, r]] of q.tries_origen ?? []) {
-      if (!orig.has(k)) orig.set(k, [0, 0]);
-      orig.get(k)[0] += u;
-      orig.get(k)[1] += r;
-    }
-  }
-  if (orig.size) {
+  const orig = origenesTries(t.partidos);
+  if (orig.length) {
     const [c1] = lz.columnas([3, 2], "large");
     c1.titulo("De dónde salieron los tries");
-    const ks = [...orig.keys()].sort((a, b) => (orig.get(b)[0] + orig.get(b)[1]) - (orig.get(a)[0] + orig.get(a)[1]));
-    c1.grafico(mariposa(ks.map(capitalizar), ks.map((k) => orig.get(k)[0]), ks.map((k) => orig.get(k)[1])));
+    c1.grafico(mariposa(orig.map(([k]) => capitalizar(k)), orig.map((o) => o[1]), orig.map((o) => o[2])));
     nota(c1, "UNI a la izquierda, el rival a la derecha.");
   }
   chancesEn22(lz, t);
@@ -340,18 +360,10 @@ function tarjetas(lz, t) {
 }
 
 function penalesDetalle(lz, t, pens) {
-  // por situación, en el orden en que aparecen; de más a menos
-  const sits = new Map();
-  for (const f of pens) {
-    if (!sits.has(f.situacion)) sits.set(f.situacion, [0, 0]);
-    sits.get(f.situacion)[0] += f.uni;
-    sits.get(f.situacion)[1] += f.rival;
-  }
-  const total = (s) => sits.get(s)[0] + sits.get(s)[1];
-  const orden = [...sits.keys()].sort((a, b) => total(b) - total(a));
+  const sits = porSituacion(pens);
   const [c1, c2] = lz.columnas(2, "large");
   c1.titulo("Dónde se cometen");
-  c1.grafico(mariposa(orden, orden.map((s) => sits.get(s)[0]), orden.map((s) => sits.get(s)[1])));
+  c1.grafico(mariposa(sits.map((s) => s[0]), sits.map((s) => s[1]), sits.map((s) => s[2])));
   nota(c1, "UNI a la izquierda, el rival a la derecha.");
   const conPer = t.partidos.filter((p) => p.periodos);
   if (conPer.length) {
@@ -507,7 +519,6 @@ export function tackles(lz, t, partido = null) {
     return { Jugador: j.nombre, PJ: pjTexto(j), Hechos: h, Errados: j.err, Completados: int1(j) ? pct(h, int1(j)) : null,
       Positivos: j.pos, Neutrales: j.neu, Negativos: j.neg };
   });
-  const desc = (a, b) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : b - a);
   filas.sort((a, b) => desc(a.Hechos, b.Hechos) || desc(a.Completados, b.Completados));
   const cols = ["Jugador", "PJ", "Hechos", "Errados", "Completados", "Positivos", "Neutrales", "Negativos"].filter((c) => !partido || c !== "PJ");
   lz.tablaDatos(cols, filas.map((f) => cols.map((c) => f[c])), Math.min(38 + 35 * filas.length, 740), CONFIG_TACKLES);

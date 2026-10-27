@@ -12,3 +12,6 @@ web/node_modules/
 base_*/
 referencia_*/
 capturas*/
+informe*/
+web/**/*.pdf
+web/**/indice.json
