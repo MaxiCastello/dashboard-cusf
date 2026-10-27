@@ -39,13 +39,21 @@ export function desplegable(sel, opciones, elegido, alCambiar) {
 // Plotly dibujado en un panel escondido sale con ancho 0. Arranca en la
 // primera, como Streamlit cada vez que cambia lo que se ve.
 let pestanasArmadas = 0;
-const observadores = new WeakMap();   // el de las flechas de cada lugar
+// lugar de las pestañas: el que mira sus flechas. Cada uno sale de acá al
+// apagarlo o cuando su fila ya no está en la página.
+const observadores = new Map();
 
-// Antes de poner otra cosa donde había pestañas: se apaga el que miraba sus
-// flechas (si no, sigue vivo y guarda la temporada anterior).
+// Antes de poner otra cosa donde había pestañas: se apagan los que miraban
+// sus flechas, las de ahí y las que quedan adentro (las de un partido,
+// debajo del marcador; las internas de una pestaña). Si no, siguen vivos y
+// guardan la temporada anterior.
 export function apagarPestanas(cont) {
-  observadores.get(cont)?.disconnect();
-  observadores.delete(cont);
+  for (const [lugar, obs] of observadores) {
+    if (cont.contains(lugar)) {
+      obs.disconnect();
+      observadores.delete(lugar);
+    }
+  }
 }
 
 export function pestanas(cont, rotulos, alMostrar) {

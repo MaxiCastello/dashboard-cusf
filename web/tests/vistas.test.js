@@ -10,7 +10,7 @@ import { test } from "node:test";
 import * as C from "../sitio/js/calculos.js";
 import { Registro } from "../sitio/js/lienzo.js";
 import { armar } from "./_armar.js";
-import { SECCIONES_TEMPORADA } from "./_vistas.js";
+import { SECCIONES_TEMPORADA, dibujarPartido } from "./_vistas.js";
 import { PRUEBAS, filasDe, leer } from "./_referencia.js";
 
 // La temporada de cada pantalla, armada con las cuentas de la página.
@@ -45,4 +45,26 @@ for (const sub of ["base", "demo"]) {
       }
     });
   }
+
+  // Cada partido (con el marcador de arriba): las mismas secciones que el
+  // Python, en el mismo orden, y cada una igual.
+  test(`cada partido: igual al Python (${sub})`, () => {
+    const casos = secciones.filter((s) => s.ver !== "temporada");
+    assert.ok(casos.length >= 5, "pocos partidos en la referencia");
+    for (const s of casos) {
+      const temp = ts.find((x) => x.anio === s.anio && x.categoria === s.categoria);
+      assert.ok(temp, `${sub} ${s.anio} ${s.categoria ?? ""}: la página no arma esta temporada`);
+      const t = temp.t;
+      const p = t.partidos.findLast((x) => x.id === s.ver);   // por_id: el último con ese id
+      assert.ok(p, `${sub} ${s.anio} ${s.categoria ?? ""}: la página no tiene el partido ${s.ver}`);
+      const hechas = comoJson(dibujarPartido(t, p));
+      const donde = `${sub} ${s.anio} ${s.categoria ?? ""} ${p.rival}`;
+      assert.deepEqual(Object.keys(hechas), Object.keys(s.secciones), `${donde}: otras secciones`);
+      for (const [nombre, esperado] of Object.entries(s.secciones)) {
+        const hecho = hechas[nombre];
+        assert.equal(hecho.length, esperado.length, `${donde} ${nombre}: ${hecho.length} cosas dibujadas y el Python ${esperado.length}`);
+        hecho.forEach((h, i) => assert.deepEqual(h, esperado[i], `${donde}, ${nombre} #${i}`));
+      }
+    }
+  });
 }

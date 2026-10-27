@@ -321,6 +321,27 @@ export function barras(x, series, { alto = 300, tituloY = "", sufijo = "" } = {}
   return grafico({ data, layout }, alto);
 }
 
+// Una telaraña: cada eje es un % (0 a 100); la forma se cierra volviendo al
+// primero. series: [[nombre, valores %, color, relleno, textos del hover]]
+export function radar(ejes, series, alto = 380) {
+  const data = series.map(([nombre, vals, color, relleno, hov]) => ({
+    customdata: [...hov, ...hov.slice(0, 1)], fill: "toself", fillcolor: relleno,
+    hovertemplate: "%{theta}: %{customdata}<extra>" + nombre + "</extra>", line: { color, width: 2.5 },
+    marker: { color, size: 7 }, name: nombre, r: [...vals, ...vals.slice(0, 1)], theta: [...ejes, ...ejes.slice(0, 1)],
+    type: "scatterpolar",
+  }));
+  const layout = {
+    polar: {
+      radialaxis: { tickfont: { size: 10, color: APAGADO }, range: [0, 100], showticklabels: false, tickvals: [25, 50, 75, 100],
+        gridcolor: "rgba(255,255,255,.08)", linecolor: BORDE },
+      angularaxis: { tickfont: { size: 12, color: TEXTO }, gridcolor: "rgba(255,255,255,.08)", linecolor: BORDE },
+      bgcolor: "rgba(0,0,0,0)",
+    },
+    legend: { y: -0.06 }, margin: { t: 24, b: 24, l: 48, r: 48 },
+  };
+  return grafico({ data, layout }, alto);
+}
+
 // Torta en dos anillos: adentro la situación, afuera el motivo.
 export function sol(etiquetas, padres, valores, colores, alto = 380) {
   const data = [{
@@ -343,4 +364,32 @@ export function apiladas(etiquetas, capas, alto = null) {
     legend: { y: 1.02, yanchor: "bottom", x: 0, traceorder: "normal" }, margin: { t: 34 },
   };
   return grafico({ data, layout }, alto || 80 + 28 * etiquetas.length);
+}
+
+// Cómo fue cambiando el marcador, anotación por anotación. evol: [{periodo,
+// u, r, eq, como}] acumulado (Uni-Dat no guarda minutos). La raya del
+// entretiempo es fig.add_vline() de plotly: una forma y su rótulo.
+export function marcadorEnElPartido(evol, alto = 320) {
+  const x = [0, ...evol.map((_, i) => i + 1)];
+  const u = [0, ...evol.map((e) => e.u)], r = [0, ...evol.map((e) => e.r)];
+  const hov = ["Arranque", ...evol.map((e) =>
+    `${e.eq === "UNI" ? "UNI" : "Rival"}: ${str(e.como)} · ${e.periodo === "PT" ? "1°" : "2°"} tiempo`)];
+  const data = [["Rival", r, RIVAL], ["UNI", u, UNI]].map(([nombre, ys, color]) => ({
+    customdata: hov, hovertemplate: "%{customdata}<br>" + nombre + " %{y}<extra></extra>",
+    line: { color, shape: "hv", width: 3 }, marker: { color, size: 7 }, mode: "lines+markers", name: nombre,
+    x, y: ys, type: "scatter",
+  }));
+  const layout = {
+    xaxis: { title: { text: "Anotaciones, en orden" }, showgrid: false, dtick: 1 },
+    yaxis: { title: { text: "Puntos" }, rangemode: "tozero" },
+    legend: { y: 1.02, yanchor: "bottom", x: 0, traceorder: "reversed" }, margin: { t: 34 },
+  };
+  const medio = evol.findIndex((e) => e.periodo === "ST");
+  if (medio > 0) {
+    layout.shapes = [{ line: { color: APAGADO, dash: "dot", width: 1 }, type: "line", x0: medio + 0.5, x1: medio + 0.5,
+      xref: "x", y0: 0, y1: 1, yref: "y domain" }];
+    layout.annotations = [{ font: { color: APAGADO, size: 11 }, showarrow: false, text: "Entretiempo", x: medio + 0.5,
+      xanchor: "center", xref: "x", y: 1, yanchor: "bottom", yref: "y domain" }];
+  }
+  return grafico({ data, layout }, alto);
 }

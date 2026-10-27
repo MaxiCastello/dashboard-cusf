@@ -209,6 +209,14 @@ table.objetivos td.sd { color:var(--apagado); font-size:.75rem; }
 .kpi .l { font-family:'DM Mono',monospace; font-size:.68rem; letter-spacing:1.5px; color:var(--apagado);
   margin-top:6px; text-transform:uppercase; }
 
+/* ── Marcador del partido ────────────────────────────────────────────────── */
+.marcador { background:var(--sup); border:1px solid var(--borde); border-radius:12px; padding:14px;
+  display:flex; justify-content:center; align-items:center; gap:22px; margin:4px 0 14px; }
+.marcador .eq { text-align:center; font-family:'DM Mono',monospace; font-size:.72rem; letter-spacing:2px; color:var(--apagado); }
+.marcador .n { font-family:'Bebas Neue',sans-serif; font-size:3.4rem; line-height:1; }
+.marcador .sep { font-family:'Bebas Neue',sans-serif; font-size:2rem; color:var(--borde); }
+.marcador .info { font-family:'DM Mono',monospace; font-size:.7rem; color:var(--apagado); text-align:center; }
+
 /* ── Anillos "X de Y" ────────────────────────────────────────────────────── */
 .anillos { display:grid; grid-template-columns:repeat(auto-fit,minmax(132px,1fr)); gap:10px; margin:4px 0 14px; }
 .anillo { background:var(--sup); border:1px solid var(--borde); border-radius:12px; padding:14px 8px 12px; text-align:center; }
@@ -251,7 +259,7 @@ table.t th:first-child, table.t td:first-child { text-align:left; font-family:'D
   .contenedor { padding-left:.8rem; padding-right:.8rem; padding-top: calc(4rem + 1rem); }
   .enc img { height:42px; } .enc .t { font-size:1.5rem; letter-spacing:3px; }
   .kpis, .kpis:has(> .kpi:nth-child(6)) { grid-template-columns:repeat(2,1fr); }
-  .kpi .v { font-size:1.9rem; }
+  .kpi .v { font-size:1.9rem; } .marcador .n { font-size:2.6rem; }
   .anillos { grid-template-columns:repeat(2,1fr) !important; }
 }
 

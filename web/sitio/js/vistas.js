@@ -8,10 +8,11 @@
 // jerga y sin decir si estuvo bien o mal.
 import { etiqueta, pjTexto, resultado, sumar, tacklesTemporada } from "./calculos.js";
 import { coma, conSigno, fijo, pct, unDecimal, xdey } from "./formato.js";
-import { acumulado, apiladas, barras, chances22, dona, lineas, mapaCalor, mariposa, pesas, piruletas, sol } from "./graficos.js";
+import { acumulado, apiladas, barras, chances22, dona, lineas, mapaCalor, marcadorEnElPartido, mariposa, pesas, piruletas, radar, sol }
+  from "./graficos.js";
 import { aclarar, anillos, html, kpis, tabla } from "./piezas.js";
 import { MIN_AMARILLA, MIN_ROJA, OBJETIVOS, evaluar, minutosConUnoMenos, temporada } from "./objetivos.js";
-import { capitalizar, enteroDeTexto, o, soloCifras, str } from "./python.js";
+import { capitalizar, conDefecto, enteroDeTexto, esVerdad, mayuscula, o, soloCifras, str } from "./python.js";
 import { ACENTO, AVISO, MAL, NEUTRO, RIVAL, UNI } from "./tema.js";
 
 // ── Lo que usan varias pestañas ─────────────────────────────────────────────
@@ -36,6 +37,29 @@ const cuantos = (rs, x) => rs.filter((r) => r === x).length;
 
 export function nota(lz, txt) {
   lz.html(html`<div class="nota">${txt}</div>`);
+}
+
+// ── Encabezado de un partido ────────────────────────────────────────────────
+
+const RESULTADO = { G: "Ganado", P: "Perdido", E: "Empatado" };
+const ORIGEN = new Map([["unidat", "Cargado en Uni-Dat"], ["manual", "Cargado a mano en el tablero"],
+  ["planilla", "Planilla 2025 (sólo tackles)"]]);
+
+// El tanteo, arriba de las pestañas del partido (va antes que ellas).
+export function marcador(lz, p) {
+  const res = RESULTADO[resultado(p)];
+  let origen = ORIGEN.get(p.fuente) ?? "";
+  if (esVerdad(p.tarjetas_unidat)) origen += " (tarjetas corregidas en el tablero)";
+  const cat = esVerdad(p.categoria) ? ` · ${str(p.categoria)}` : "";
+  if (p.fuente === "planilla") {
+    lz.html(html`<div class="marcador"><div class="info">${str(conDefecto(p, "fecha_txt", ""))} · ${p.rival}<br>${origen}</div></div>`);
+    return;
+  }
+  // (html`` + html`` daría un texto común, que se escaparía: van juntos adentro de otro)
+  const uni = html`<div class="eq">UNI<div class="n" style="color:${UNI}">${str(p.score_uni)}</div></div>`;
+  const rival = html`<div class="eq">${mayuscula(p.rival)}<div class="n" style="color:${RIVAL}">${str(p.score_rival)}</div></div>`;
+  lz.html(html`<div class="marcador">${uni}<div class="sep">–</div>${rival}</div><div class="nota" style="text-align:center">${
+    etiqueta(p, true)}${cat} · ${res} · ${origen}</div>`);
 }
 
 // ── Resumen de la temporada ─────────────────────────────────────────────────
@@ -491,4 +515,94 @@ export function tackles(lz, t, partido = null) {
     nota(lz, "PJ = partidos en los que estuvo en la lista del Tackle Tracker, aunque no haya tackleado. " +
       "Titular: jugó con la camiseta 1 a 15 en ese partido; suplente: de la 16 en adelante.");
   }
+}
+
+// ── Un partido ──────────────────────────────────────────────────────────────
+
+// Las pestañas de un partido, en orden (las de dashboard.py, sin el Informe):
+// [la sección (como en exportar_secciones.py), el rótulo, dibujar(lz, p, t, tp)].
+// tp es el partido como una temporada de uno (una()): así reusan las de la
+// temporada. La página y las pruebas usan esta misma lista.
+export const SECCIONES_PARTIDO = [
+  ["resumen", "Resumen", (lz, p, t, tp) => partidoResumen(lz, p, t, tp)],
+  ["tiempos", "1° vs 2° tiempo", (lz, p) => tiempos(lz, p)],
+  ["puntos", "Puntos", (lz, p, t, tp) => puntos(lz, tp)],
+  ["formaciones", "Formaciones", (lz, p, t, tp) => formaciones(lz, tp)],
+  ["penales", "Penales", (lz, p, t, tp) => penales(lz, tp)],
+  ["tackles", "Tackles", (lz, p, t, tp) => tackles(lz, tp, p)],
+  ["objetivos", "Objetivos", (lz, p, t, tp) => objetivos(lz, tp)],
+];
+
+// tp: el partido como temporada de uno (una() de calculos.js).
+export function partidoResumen(lz, p, t, tp) {
+  if (esVerdad(p.marcador)) {
+    lz.titulo("Cómo se fue dando el marcador");
+    lz.grafico(marcadorEnElPartido(p.marcador));
+    nota(lz, "Cada paso es una anotación, en el orden en que se cargó (Uni-Dat no guarda los minutos).");
+  }
+  if (t.partidos.length >= 2) contraTemporada(lz, p, t);
+  else formaciones(lz, tp);   // sin temporada para comparar: lo principal del partido
+}
+
+const LADOS_TIEMPO = ["Puntos", "Tries", "Penales cometidos", "Knock-ons", "Tarjetas"];
+
+export function tiempos(lz, p) {
+  if (!esVerdad(p.periodos)) {
+    nota(lz, "Este partido no tiene el detalle por tiempo (se cargó a mano o viene de la planilla).");
+    return;
+  }
+  const a = p.periodos.PT, b = p.periodos.ST;
+  const cols = lz.columnas(2, "large");
+  [["UNI", "u"], ["Rival", "r"]].forEach(([quien, l], i) => {
+    const de = (s) => ["pts", "tries", "pen", "ko", "tar"].map((k) => s[`${k}_${l}`]);
+    cols[i].titulo(quien);
+    cols[i].grafico(mariposa(LADOS_TIEMPO, de(a), de(b), { nombres: ["1° tiempo", "2° tiempo"], colores: [ACENTO, "#9fb8ff"] }));
+  });
+  nota(lz, "El 1° tiempo a la izquierda y el 2° a la derecha." +
+    (esVerdad(p.tarjetas_unidat) ? " Las tarjetas por tiempo son las de Uni-Dat: el total del partido se corrigió en el tablero." : ""));
+  lz.titulo("Formaciones propias ganadas");
+  const items = [];
+  for (const [s, per] of [[a, "1° tiempo"], [b, "2° tiempo"]]) {
+    items.push(["Line propio", s.line.uGan, s.line.uLan, UNI, `${per} · UNI`],
+      ["Scrum propio", s.scrum.uGan, s.scrum.uLan, UNI, `${per} · UNI`],
+      ["Salidas propias", s.salida.uGan, s.salida.uPro, UNI, `${per} · UNI`]);
+  }
+  lz.html(anillos(items));
+  const formas = [["Line", "line", "uLan", "rLan"], ["Scrum", "scrum", "uLan", "rLan"], ["Salidas", "salida", "uPro", "rPro"]];
+  lz.desplegable("Ver también los del rival").html(tabla(["", "1° T UNI", "1° T Rival", "2° T UNI", "2° T Rival"],
+    formas.map(([n, k, l, rl]) => [n, xdey(a[k].uGan, a[k][l]), xdey(a[k].rGan, a[k][rl]), xdey(b[k].uGan, b[k][l]),
+      xdey(b[k].rGan, b[k][rl])])));
+}
+
+// Este partido al lado de la temporada (sin juzgar).
+export function contraTemporada(lz, p, t) {
+  const otros = t.partidos, n = otros.length, tot = t.totales;
+  const jugT = tacklesTemporada(otros);
+  const [pa, pb] = pateo(p), [ta, tb] = pateo(tot);
+  const ejes = [["Line propio", p.line.uGan, p.line.uLan, tot.line.uGan, tot.line.uLan],
+    ["Scrum propio", p.scrum.uGan, p.scrum.uLan, tot.scrum.uGan, tot.scrum.uLan],
+    ["Salidas propias", p.salida.uGan, p.salida.uPro, tot.salida.uGan, tot.salida.uPro],
+    ["Pateo a los palos", pa, pb, ta, tb],
+    ["Tackles completados", hechos(p.tackles), intentos(p.tackles), hechos(jugT), intentos(jugT)]]
+    .filter((e) => esVerdad(e[2]) && esVerdad(e[4]));
+  const [c1, c2] = lz.columnas([1, 1], "large");
+  c1.titulo("Este partido y la temporada");
+  if (ejes.length >= 3) {
+    c1.grafico(radar(ejes.map((e) => e[0]), [
+      ["Temporada", ejes.map((e) => pct(e[3], e[4])), "#8b93a3", "rgba(139,147,163,.15)", ejes.map((e) => xdey(e[3], e[4]))],
+      ["Este partido", ejes.map((e) => pct(e[1], e[2])), UNI, "rgba(0,200,83,.22)", ejes.map((e) => xdey(e[1], e[2]))]]));
+    nota(c1, `Lo ganado de cada cosa, en %. La temporada suma sus ${n} partidos.`);
+  }
+  const prom = (v) => unDecimal(v / n);
+  const x = (f, g, l) => xdey(f[g], f[l]);
+  c2.titulo("En números");
+  c2.html(tabla(["", "Este partido", `Temporada (${n})`], [
+    ["Puntos a favor", p.score_uni, prom(tot.score_uni)],
+    ["Puntos en contra", p.score_rival, prom(tot.score_rival)],
+    ["Line propio ganado", x(p.line, "uGan", "uLan"), x(tot.line, "uGan", "uLan")],
+    ["Scrum propio ganado", x(p.scrum, "uGan", "uLan"), x(tot.scrum, "uGan", "uLan")],
+    ["Salidas propias ganadas", x(p.salida, "uGan", "uPro"), x(tot.salida, "uGan", "uPro")],
+    ["Pateo a los palos", xdey(pa, pb), xdey(ta, tb)],
+    ["Penales cometidos por UNI", pen(p), prom(pen(tot))]]));
+  nota(c2, "En puntos y penales, la temporada es el promedio por partido; en el resto, la suma.");
 }

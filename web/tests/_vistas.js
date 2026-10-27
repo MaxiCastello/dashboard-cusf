@@ -1,9 +1,11 @@
 // Para pruebas/fuzz_vistas.py: dibuja las pestañas ya pasadas de cada
-// temporada de cada base (con Registro, sin página) y anota lo que dibujó.
+// temporada y de cada uno de sus partidos, en cada base (con Registro, sin
+// página), y anota lo que dibujó.
 //
 // Uso: node tests/_vistas.js <entrada.json> <salida.json>
 //   entrada: [{unidat, manuales}, ...]   (las mismas bases que arma el Python)
-//   salida:  por base: [{anio, categoria, secciones: {nombre: [llamadas]}}]
+//   salida:  por base: [{anio, categoria, secciones: {nombre: [llamadas]},
+//                        partidos: [{id, secciones: {nombre: [llamadas]}}]}]
 //            o {error} si las cuentas cortaron (ErrorDatos)
 import { readFileSync, writeFileSync } from "node:fs";
 import process from "node:process";
@@ -18,9 +20,24 @@ import * as V from "../sitio/js/vistas.js";
 // las pestañas de la temporada ya pasadas a la página
 export const SECCIONES_TEMPORADA = { resumen: V.resumen, evolucion: V.evolucion, puntos: V.puntos, formaciones: V.formaciones, penales: V.penales, tackles: V.tackles, objetivos: V.objetivos };
 
+const correr = (f, ...a) => {
+  const lz = new Registro();
+  f(lz, ...a);
+  return lz.llamadas;
+};
+
+// Las secciones de un partido, como las dibuja dashboard.py (y las anota
+// exportar_secciones.py): el marcador va antes de las pestañas; uno de la
+// planilla 2025 tiene sólo sus tackles.
+export function dibujarPartido(t, p) {
+  if (t.planilla) return { marcador: correr(V.marcador, p), tackles: correr(V.tackles, t, p) };
+  const tp = C.una(p, t);
+  // las pestañas de V.SECCIONES_PARTIDO: la misma lista que usa la página
+  return { marcador: correr(V.marcador, p), ...Object.fromEntries(V.SECCIONES_PARTIDO.map(([nombre, , f]) => [nombre, correr(f, p, t, tp)])) };
+}
+
 export function dibujarTodo(unidat, manuales, planilla = false) {
   const out = [];
-  // sólo las temporadas (no las etiquetas de cada partido, como fuzz_vistas.py)
   const partidos = C.partidosBase(unidat, manuales);
   const temporadas = [];
   for (const anio of C.aniosDisponibles(partidos)) {
@@ -31,13 +48,8 @@ export function dibujarTodo(unidat, manuales, planilla = false) {
     for (const cat of C.categoriasDe(partidos, anio)) temporadas.push({ anio, categoria: cat, t: C.temporada(partidos, anio, cat) });
   }
   for (const { anio, categoria, t } of temporadas) {
-    const secciones = {};
-    for (const [nombre, f] of Object.entries(SECCIONES_TEMPORADA)) {
-      const lz = new Registro();
-      f(lz, t);
-      secciones[nombre] = lz.llamadas;
-    }
-    out.push({ anio, categoria, secciones });
+    const secciones = Object.fromEntries(Object.entries(SECCIONES_TEMPORADA).map(([nombre, f]) => [nombre, correr(f, t)]));
+    out.push({ anio, categoria, secciones, partidos: t.partidos.map((p) => ({ id: p.id, secciones: dibujarPartido(t, p) })) });
   }
   return JSON.parse(JSON.stringify(out));
 }

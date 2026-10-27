@@ -12,8 +12,8 @@
 // Si algo falla al armar (un dato imposible: el Python se cae), no queda la
 // pantalla a medias: se esconde todo y se ve el error (fallo()).
 //
-// FASE 3: el contenido de las pestañas (fases 4 y 5) todavía no está.
-import { ANIO_PLANILLA, aniosDisponibles, categoriasDe, etiqueta, temporada } from "./calculos.js";
+// FALTA: la pestaña Informe (fase 6).
+import { ANIO_PLANILLA, aniosDisponibles, categoriasDe, etiqueta, temporada, una } from "./calculos.js";
 import { apagarPestanas, desplegable, pestanas, radios } from "./controles.js";
 import { EnPagina } from "./lienzo.js";
 import { encabezado } from "./marco.js";
@@ -28,8 +28,9 @@ export const PESTANAS_TEMPORADA = ["Resumen", "Partidos", "Puntos", "Formaciones
 // Las pestañas de la temporada ya pasadas (fase 4), en el orden de arriba.
 const SECCIONES_TEMPORADA = [V.resumen, V.evolucion, V.puntos, V.formaciones, V.penales, V.tackles, V.objetivos];
 
-export const PESTANAS_PARTIDO = ["Resumen", "1° vs 2° tiempo", "Puntos", "Formaciones", "Penales", "Tackles", "Objetivos",
-  "Informe"];
+// Las de un partido salen de V.SECCIONES_PARTIDO (la misma lista que prueban
+// tests/vistas.test.js y fuzz_vistas.py) y el Informe.
+export const PESTANAS_PARTIDO = [...V.SECCIONES_PARTIDO.map(([, rotulo]) => rotulo), "Informe"];
 
 // Algo falló: sólo el mensaje (como el Python, que deja de mostrar el tablero).
 export function fallo(err) {
@@ -116,14 +117,24 @@ export function tablero({ partidos, errorBase = null }) {
       }));
       return;
     }
+    // un partido: el marcador y abajo sus pestañas (o sólo sus tackles, si
+    // es de la planilla 2025)
     const p = porIdDe(t).get(estado.ver);
-    if (t.planilla) {   // un partido de la planilla 2025: sólo sus tackles, sin pestañas
-      apagarPestanas(cont);
-      poner(cont, html`<div class="panel" data-partido-planilla></div>`);
-      enPreparacion(cont.firstElementChild, `Tackles · ${p.rival}`);
+    apagarPestanas(cont);
+    poner(cont, html`<div class="bloque"></div>`);
+    const lz = new EnPagina(cont.firstElementChild);
+    V.marcador(lz, p);
+    if (t.planilla) {
+      V.tackles(lz, t, p);
       return;
     }
-    pestanas(cont, PESTANAS_PARTIDO, (i, panel) => enPreparacion(panel, PESTANAS_PARTIDO[i]));
+    const tp = una(p, t);
+    // (las pestañas van debajo del marcador; apagarPestanas(cont) también las apaga)
+    pestanas(lz.poner(html`<div class="pestanas-partido"></div>`), PESTANAS_PARTIDO, seguro((i, panel) => {
+      const f = V.SECCIONES_PARTIDO[i]?.[2];
+      if (f) f(new EnPagina(panel), p, t, tp);
+      else enPreparacion(panel, PESTANAS_PARTIDO[i]);
+    }));
   }
 
   $("cargando").hidden = true;
@@ -139,7 +150,7 @@ function porIdDe(t) {
   return m;
 }
 
-// FASE 3: lugar de lo que se pasa en las fases 4 y 5.
+// FALTA: lugar de lo que se pasa en la fase 6 (Informe).
 function enPreparacion(panel, que) {
   poner(panel, html`<p class="nota">${que}: en preparación (todavía se ve en el tablero de siempre).</p>`);
 }
