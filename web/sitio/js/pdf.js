@@ -93,6 +93,15 @@ class Hoja {
     return this.doc.getTextWidth(seguro(t, this.fuente));
   }
 
+  // si texto() lo escribe entero, sin cortarlo con "…" (medido igual que ahí)
+  entra(t, max, espacio = 0) {
+    const s = seguro(t, this.fuente);
+    this.doc.setCharSpace(espacio);
+    const si = this.doc.getTextWidth(s) + espacio * s.length <= max;
+    this.doc.setCharSpace(0);
+    return si;
+  }
+
   // un renglón; si no entra en `max`, se corta con "…"
   texto(t, x, y, { alinear = "left", max = null, espacio = 0 } = {}) {
     let s = seguro(t, this.fuente);
@@ -186,11 +195,27 @@ function encabezado(h, b) {
   const x = M + ew + 12;
   h.letra("DMMono", 7.5, C.claro);
   h.texto("UNIVERSITARIO RUGBY · INFORME", x, 36, { espacio: 1.2, max: ANCHO - x - M });
-  // el título grande: si no entra, más chico (hasta 16) y recién ahí se corta
-  let tam = 24;
+  // el título grande: si no entra, más chico (hasta 20); si tampoco, en dos
+  // renglones cortado en un " · " (hasta 16) y recién ahí se corta con "…"
+  const max = ANCHO - x - M, entra = (s) => h.entra(s, max, 0.6);
+  const partes = b.titulo.split(" · ");
+  const enDos = () => {
+    for (let k = partes.length - 1; k > 0; k--) {
+      const dos = [partes.slice(0, k).join(" · "), partes.slice(k).join(" · ")];
+      if (dos.every(entra)) return dos;
+    }
+    return null;
+  };
+  let tam = 24, renglones = null;
   h.letra("Bebas", tam, "#ffffff");
-  while (tam > 16 && h.ancho(b.titulo) + 0.6 * b.titulo.length > ANCHO - x - M) h.letra("Bebas", --tam, "#ffffff");
-  h.texto(b.titulo, x, 61, { espacio: 0.6, max: ANCHO - x - M });
+  while (tam > 20 && !entra(b.titulo)) h.letra("Bebas", --tam, "#ffffff");
+  if (!entra(b.titulo)) {
+    tam = 22;
+    h.letra("Bebas", tam, "#ffffff");
+    while (!(renglones = enDos()) && tam > 16) h.letra("Bebas", --tam, "#ffffff");
+  }
+  if (renglones) renglones.forEach((r, i) => h.texto(r, x, 57 + i * (tam + 1), { espacio: 0.6, max }));
+  else h.texto(b.titulo, x, 61, { espacio: 0.6, max });
   if (b.marcador) {
     // el tanteo: UNI a la izquierda, el rival a la derecha, grande
     const mc = b.marcador, cy = 128, mitad = ANCHO / 2;
@@ -207,7 +232,7 @@ function encabezado(h, b) {
     h.renglones(b.detalle, CW).slice(0, 2).forEach((r, i) => h.texto(r, mitad, cy + 38 + i * 11, { alinear: "center" }));
   } else {
     h.letra("DMSans", 9.5, "#c9ced8");
-    h.renglones(b.detalle, CW).slice(0, 3).forEach((r, i) => h.texto(r, M, 98 + i * 13));
+    h.renglones(b.detalle, CW).slice(0, 3).forEach((r, i) => h.texto(r, M, (renglones ? 103 : 98) + i * 13));
   }
   h.letra("DMSans", 7, C.claro);
   h.texto(h.meta.generado, M, alto - 13);

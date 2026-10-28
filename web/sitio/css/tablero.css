@@ -187,7 +187,8 @@ table.objetivos td.sd { color:var(--apagado); font-size:.75rem; }
 .datos .scroll:hover { scrollbar-color: rgba(232,234,240,.3) transparent; }
 .datos canvas { position: sticky; top: 0; left: 0; display: block; }
 .datos .relleno { margin-top: 0; }
-/* la tabla de verdad, para el lector de pantalla: no se ve */
+/* la tabla de verdad, para el lector de pantalla: no se ve. Va adentro de un
+   div: una tabla no achica a 1px y se salía a lo ancho en el celular */
 .para-lector { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* ── Desplegable (st.expander), medido en Streamlit ──────────────────────── */

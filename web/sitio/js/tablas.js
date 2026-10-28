@@ -96,7 +96,7 @@ export function tablaDatos(cont, columnas, filas, alto, config) {
   // caja que se corre (así el dedo y la rueda la corren como siempre), y
   // abajo un relleno del tamaño de toda la tabla
   poner(cont, html`<div class="caja" style="height:${alto}px"><div class="scroll"><canvas class="lienzo-tabla" aria-hidden="true"></canvas><div class="relleno"></div></div></div>
-<table class="para-lector"><caption>Tabla</caption><thead><tr>${titulos.map((t) => html`<th scope="col"><button type="button">${t}</button></th>`)}</tr></thead><tbody></tbody></table>`);
+<div class="para-lector"><table><caption>Tabla</caption><thead><tr>${titulos.map((t) => html`<th scope="col"><button type="button">${t}</button></th>`)}</tr></thead><tbody></tbody></table></div>`);
   const caja = cont.querySelector(".caja"), scroll = cont.querySelector(".scroll"), canvas = cont.querySelector("canvas");
   const relleno = cont.querySelector(".relleno");
   const lector = cont.querySelector(".para-lector");
