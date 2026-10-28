@@ -56,7 +56,7 @@ export function apagarPestanas(cont) {
   }
 }
 
-export function pestanas(cont, rotulos, alMostrar) {
+export function pestanas(cont, rotulos, alMostrar, inicial = 0) {
   const id = `pest${++pestanasArmadas}`;
   apagarPestanas(cont);
   poner(cont, html`<div class="pestanas"><div role="tablist">${rotulos.map((r, i) =>
@@ -121,6 +121,6 @@ ${rotulos.map((r, i) => html`<div class="panel" role="tabpanel" id="${id}-p${i}"
   observadores.set(cont, obs);
   document.fonts?.ready.then(flechas);
 
-  mostrar(0);
+  mostrar(inicial >= 0 && inicial < botones.length ? inicial : 0);
   flechas();
 }

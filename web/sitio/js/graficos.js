@@ -342,15 +342,26 @@ export function radar(ejes, series, alto = 380) {
   return grafico({ data, layout }, alto);
 }
 
-// Torta en dos anillos: adentro la situación, afuera el motivo.
-export function sol(etiquetas, padres, valores, colores, alto = 380) {
+// Cajas dentro de cajas (treemap): el tamaño de cada una es su cantidad.
+// nodos: [{id, padre, rotulo, valor, color, texto, detalle}]; texto va en la
+// caja y detalle al pasar el mouse (en una pantalla táctil no hay cartelito:
+// al tocar tapaba los nombres; lo que importa va en texto). Tocar una caja con
+// otras adentro la abre sola (arriba queda el camino para volver). hondo:
+// cuántos niveles se ven a la vez.
+export function cajas(nodos, { alto = 420, hondo = 3 } = {}) {
+  const tactil = typeof matchMedia === "function" && matchMedia("(hover: none)").matches;
   const data = [{
-    branchvalues: "total", hovertemplate: "%{label}: %{value}<extra></extra>",
-    ids: etiquetas.map((e, i) => (padres[i] ? `${padres[i]}/${e}` : e)), insidetextorientation: "radial", labels: etiquetas,
-    marker: { colors: colores, line: { color: "#0a0c0f", width: 2 } }, parents: padres,
-    textfont: { color: "#0a0c0f", size: 12 }, values: valores, type: "sunburst",
+    branchvalues: "total", ids: nodos.map((n) => n.id), labels: nodos.map((n) => n.rotulo),
+    parents: nodos.map((n) => n.padre), values: nodos.map((n) => n.valor), customdata: nodos.map((n) => n.texto),
+    hovertext: nodos.map((n) => n.detalle), marker: { colors: nodos.map((n) => n.color), line: { color: "#0a0c0f", width: 2 } },
+    texttemplate: "<b>%{label}</b><br>%{customdata}",
+    ...(tactil ? { hoverinfo: "none" } : { hovertemplate: "<b>%{label}</b><br>%{hovertext}<extra></extra>" }),
+    textfont: { color: nodos.map((n) => (n.padre ? "#0a0c0f" : "#e8eaf0")), size: 13 }, textposition: "top left",
+    tiling: { pad: 3 }, pathbar: { visible: true, thickness: 26, textfont: { size: 14, color: "#e8eaf0" } }, maxdepth: hondo,
+    type: "treemap",
   }];
-  return grafico({ data, layout: { margin: { t: 8, b: 8, l: 8, r: 8 } } }, alto);
+  // (arriba, lugar para el camino de vuelta, que aparece al abrir una caja)
+  return grafico({ data, layout: { margin: { t: 30, b: 4, l: 0, r: 0 } } }, alto);
 }
 
 // Barras horizontales apiladas. capas: [[nombre, valores, color]]

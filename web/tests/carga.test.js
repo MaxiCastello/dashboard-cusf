@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 
 import { leerCsvTackles } from "../sitio/js/calculos.js";
-import { armarComplemento, armarPartido, registrosDelCsv, valoresPartido } from "../sitio/js/carga.js";
+import { armarComplemento, armarPartido, AVISO_2025, registrosDelCsv, valoresPartido } from "../sitio/js/carga.js";
 import { borrarManual, ErrorBase, filasManuales, filasUnidat, guardarManual, ingresar, renovar, URL_BASE } from "../sitio/js/fuente.js";
 import { leer } from "./_referencia.js";
 
@@ -34,6 +34,14 @@ test("rival, categoría y fecha", () => {
   const f = armarPartido({ ...base(), r: " Rowing B ", c: "  " }, null, null).fila;
   assert.equal(f.rival, "Rowing B");
   assert.equal(f.categoria, null);
+});
+
+test("un partido de 2025 se guarda, con el aviso de que no se va a ver (2025 sale de la planilla)", () => {
+  const r = armarPartido({ ...base(), f: "2025-11-02" }, null, null);
+  assert.deepEqual(r.aviso, ["ojo", `Guardado: UNI 0–0 Rowing. ${AVISO_2025}`]);
+  assert.match(AVISO_2025, /^Los partidos de 2025 no se ven en el tablero/);
+  assert.equal(armarPartido({ ...base(), f: "2026-01-01" }, null, null).aviso[0], "ok");
+  assert.equal(armarPartido({ ...base(), f: "2024-12-31" }, null, null).aviso[0], "ok");
 });
 
 test("un partido nuevo arranca vacío, con la categoría Primera y la fecha de hoy", () => {

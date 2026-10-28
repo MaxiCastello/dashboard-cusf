@@ -9,6 +9,7 @@ import { test } from "node:test";
 
 import * as C from "../sitio/js/calculos.js";
 import { Registro } from "../sitio/js/lienzo.js";
+import { aProposito } from "./_aproposito.js";
 import { armar } from "./_armar.js";
 import { SECCIONES_TEMPORADA, dibujarPartido } from "./_vistas.js";
 import { PRUEBAS, filasDe, leer } from "./_referencia.js";
@@ -37,8 +38,8 @@ for (const sub of ["base", "demo"]) {
         const t = ts.find((x) => x.anio === s.anio && x.categoria === s.categoria).t;
         const lz = new Registro();
         f(lz, t);
-        const esperado = s.secciones[nombre];
-        const hecho = comoJson(lz.llamadas);
+        const esperado = aProposito(s.secciones[nombre]);
+        const hecho = aProposito(comoJson(lz.llamadas));
         const donde = `${sub} ${s.anio} ${s.categoria ?? ""}`;
         assert.equal(hecho.length, esperado.length, `${donde}: ${hecho.length} cosas dibujadas y el Python ${esperado.length}`);
         hecho.forEach((h, i) => assert.deepEqual(h, esperado[i], `${donde}, ${nombre} #${i}`));
@@ -60,8 +61,8 @@ for (const sub of ["base", "demo"]) {
       const hechas = comoJson(dibujarPartido(t, p));
       const donde = `${sub} ${s.anio} ${s.categoria ?? ""} ${p.rival}`;
       assert.deepEqual(Object.keys(hechas), Object.keys(s.secciones), `${donde}: otras secciones`);
-      for (const [nombre, esperado] of Object.entries(s.secciones)) {
-        const hecho = hechas[nombre];
+      for (const [nombre, tal] of Object.entries(s.secciones)) {
+        const esperado = aProposito(tal), hecho = aProposito(hechas[nombre]);
         assert.equal(hecho.length, esperado.length, `${donde} ${nombre}: ${hecho.length} cosas dibujadas y el Python ${esperado.length}`);
         hecho.forEach((h, i) => assert.deepEqual(h, esperado[i], `${donde}, ${nombre} #${i}`));
       }

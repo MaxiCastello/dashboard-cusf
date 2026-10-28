@@ -12,7 +12,7 @@
 // en una casilla de número algo que no sea un entero de 0 a 300, ni más
 // letras que las permitidas, ni dejar la fecha vacía. Acá son casillas de
 // HTML: eso se valida antes que el resto.
-import { etiqueta, leerCsvTackles, SITUACIONES } from "./calculos.js";
+import { ANIO_PLANILLA, etiqueta, leerCsvTackles, SITUACIONES } from "./calculos.js";
 import { conDefecto, entero, esVerdad, letras, recortar, soloDigitos, str } from "./python.js";
 
 export const MAX_TXT = 60, MAX_N = 300;
@@ -132,6 +132,8 @@ export function registrosDelCsv(bytes) {
     .map((r) => ({ tiempo: corte(r.tiempo, 20), jugador: corte(r.jugador, 3), nombre: corte(r.nombre, MAX_TXT), tipo: corte(r.tipo, 10) }));
 }
 
+export const AVISO_2025 = `Los partidos de ${ANIO_PLANILLA} no se ven en el tablero: esa temporada sale de la planilla.`;
+
 // Guardar un partido (nuevo si fila = null, o la corrección de esa fila).
 // v: lo escrito en cada casilla; csv: los bytes del CSV elegido (o null).
 // Devuelve {errores} o {fila, id, aviso: [tipo, texto]} (id: el de la fila
@@ -199,10 +201,12 @@ export function armarPartido(v, fila, csv) {
   const su = n.su, sr = n.sr;
   const nueva = { rival, categoria: cat === "" ? null : cat, fecha: v.f, score_uni: su, score_rival: sr, datos };
   const txt = `Guardado: UNI ${su}–${sr} ${rival}.`;
-  const aviso = calcU !== su || calcR !== sr
+  let aviso = calcU !== su || calcR !== sr
     ? ["ojo", `${txt} Ojo: con tries y patadas da ${calcU}–${calcR}, distinto del tanteo cargado (${su}–${sr}). ` +
       "Se guardó igual; si fue un error, corregilo."]
     : ["ok", txt];
+  // (no está en cargar.py) 2025 sale de la planilla: un partido de ese año no se vería
+  if (v.f.startsWith(`${ANIO_PLANILLA}-`)) aviso = ["ojo", `${aviso[1]} ${AVISO_2025}`];
   return { fila: nueva, id: fila?.id ?? null, aviso };
 }
 

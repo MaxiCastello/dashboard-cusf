@@ -13,7 +13,7 @@
 // pantalla a medias: se esconde todo y se ve el error (fallo()).
 //
 // La última pestaña (Informe) arma el PDF: pestana-informe.js.
-import { ANIO_PLANILLA, aniosDisponibles, categoriasDe, etiqueta, temporada, una } from "./calculos.js";
+import { ANIO_PLANILLA, aniosDisponibles, categoriasDe, etiqueta, temporada, TORNEOS, torneo, torneosDe, una } from "./calculos.js";
 import { apagarPestanas, desplegable, pestanas, radios } from "./controles.js";
 import { EnPagina } from "./lienzo.js";
 import { encabezado } from "./marco.js";
@@ -56,16 +56,23 @@ const seguro = (f) => (...a) => {
 };
 
 // partidos: los de la base (ya armados); errorBase: el mensaje si la base no
-// contestó (entonces partidos es [] y se ve sólo 2025).
+// contestó (entonces partidos es [] y se ve sólo 2025). Devuelve
+// actualizar(): con los partidos leídos de nuevo, se vuelve a armar con lo
+// elegido (si sigue existiendo) y en la misma pestaña.
 export function tablero({ partidos, errorBase = null }) {
   const aviso = $("aviso");
-  aviso.hidden = !errorBase;
-  if (errorBase) aviso.textContent = `${errorBase} Se muestra sólo la temporada 2025.`;
+  function avisar(error) {
+    aviso.hidden = !error;
+    if (error) aviso.textContent = `${error} Se muestra sólo la temporada 2025.`;
+  }
+  avisar(errorBase);
 
-  const anios = aniosDisponibles(partidos);
+  let anios = aniosDisponibles(partidos);
   const estado = { anio: anios[0], cat: null, ver: "temporada" };
 
-  function armar() {
+  // pestana: la de arriba que se muestra (al tocar un filtro, la primera, como
+  // Streamlit; al volver a leer la base, la que estaba)
+  function armar(pestana = 0) {
     let t, sub;
     // en 2025 la columna de Categoría queda vacía, pero queda (como en
     // Streamlit: en el celular, apilada, deja su espacio de 1rem)
@@ -92,20 +99,31 @@ export function tablero({ partidos, errorBase = null }) {
     }));
 
     // VER: del último partido al primero
+    // (no está en el Python) después de "Toda la temporada", los torneos (Copa de Oro)
     const porId = porIdDe(t);
-    const opciones = [["temporada", "Toda la temporada"], ...[...porId].reverse().map(([id, p]) => [id, etiqueta(p)])];
-    if (!porId.has(estado.ver)) estado.ver = "temporada";
+    const torneos = torneosDe(t).map(([id, nombre]) => [`torneo:${id}`, nombre]);
+    const opciones = [["temporada", "Toda la temporada"], ...torneos, ...[...porId].reverse().map(([id, p]) => [id, etiqueta(p)])];
+    if (estado.ver !== "temporada" && !porId.has(estado.ver) && !torneos.some(([v]) => v === estado.ver)) {
+      estado.ver = "temporada";   // ese partido ya no está
+      pestana = 0;
+    }
     desplegable($("ver"), opciones, estado.ver, seguro((v) => {
       estado.ver = v;
       vista(t);
     }));
     encabezado(sub);
-    vista(t);
+    vista(t, pestana);
   }
 
-  function vista(t) {
+  function vista(t, pestana = 0) {
     const cont = $("vista");
-    if (estado.ver === "temporada") {
+    if (estado.ver === "temporada" || estado.ver.startsWith("torneo:")) {
+      let cat = estado.cat;
+      if (estado.ver !== "temporada") {
+        const id = estado.ver.slice("torneo:".length);
+        t = torneo(t, id);
+        cat = `${str(estado.cat)} · ${TORNEOS.find(([x]) => x === id)[1]}`;
+      }
       if (!t.partidos.length && !t.planilla) {
         apagarPestanas(cont);
         poner(cont, html`<div class="aviso info" role="status">Todavía no hay partidos de esta temporada.</div>`);
@@ -114,8 +132,8 @@ export function tablero({ partidos, errorBase = null }) {
       pestanas(cont, PESTANAS_TEMPORADA, seguro((i, panel) => {
         const f = SECCIONES_TEMPORADA[i];
         if (f) f(new EnPagina(panel), t);
-        else pestanaInforme(panel, t, estado.cat);
-      }));
+        else pestanaInforme(panel, t, cat);
+      }), pestana);
       return;
     }
     // un partido: el marcador y abajo sus pestañas (o sólo sus tackles, si
@@ -135,13 +153,38 @@ export function tablero({ partidos, errorBase = null }) {
       const f = V.SECCIONES_PARTIDO[i]?.[2];
       if (f) f(new EnPagina(panel), p, t, tp);
       else pestanaInforme(panel, t, estado.cat, p);
-    }));
+    }), pestana);
   }
 
   $("cargando").hidden = true;
   $("filtros").hidden = false;
   $("caja-ver").hidden = false;
   armar();
+
+  // los años, las categorías y la temporada elegida (2025 sale de la planilla);
+  // los Map (orígenes de los tries, plantel) como listas, si no JSON los deja vacíos
+  const loQueSeVe = () => JSON.stringify([anios, estado.anio === ANIO_PLANILLA ? null
+    : [categoriasDe(partidos, estado.anio), temporada(partidos, estado.anio, estado.cat)]],
+  (_, v) => (v instanceof Map ? ["Map", ...v] : v));
+
+  return seguro((nuevos) => {
+    const lo = loQueSeVe();
+    partidos = nuevos;
+    anios = aniosDisponibles(partidos);
+    // si al abrir la base no contestaba, 2025 no lo eligió nadie: como al abrir
+    const deCero = !aviso.hidden || !anios.includes(estado.anio);
+    avisar(null);
+    if (deCero) {
+      Object.assign(estado, { anio: anios[0], cat: null, ver: "temporada" });
+      armar();
+      return;
+    }
+    // si lo que se ve no cambió (el cambio es de otro año o categoría), no se toca
+    if (lo === loQueSeVe()) return;
+    // la pestaña de arriba elegida (en un partido, la de sus pestañas)
+    const fila = $("vista").querySelector(".pestanas-partido [role=tablist]") ?? $("vista").querySelector("[role=tablist]");
+    armar(fila ? [...fila.children].findIndex((b) => b.getAttribute("aria-selected") === "true") : 0);
+  });
 }
 
 // por_id de dashboard.py: el último partido con cada id, en el lugar del primero.

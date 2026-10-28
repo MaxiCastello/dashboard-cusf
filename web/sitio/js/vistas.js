@@ -7,8 +7,8 @@
 // Criterio de los números: primero "X de Y" y después el porcentaje, sin
 // jerga y sin decir si estuvo bien o mal.
 import { etiqueta, pjTexto, resultado, sumar, tacklesTemporada } from "./calculos.js";
-import { coma, conSigno, fijo, pct, unDecimal, xdey } from "./formato.js";
-import { acumulado, apiladas, barras, chances22, dona, lineas, mapaCalor, marcadorEnElPartido, mariposa, pesas, piruletas, radar, sol }
+import { coma, conSigno, esc, fijo, pct, unDecimal, xdey } from "./formato.js";
+import { acumulado, apiladas, barras, cajas, chances22, dona, lineas, mapaCalor, marcadorEnElPartido, mariposa, pesas, piruletas, radar }
   from "./graficos.js";
 import { aclarar, anillos, html, kpis, tabla } from "./piezas.js";
 import { MIN_AMARILLA, MIN_ROJA, OBJETIVOS, evaluar, minutosConUnoMenos, penales as penalesDe, temporada } from "./objetivos.js";
@@ -359,6 +359,104 @@ function tarjetas(lz, t) {
     "Objetivo: 0 tarjetas por partido.");
 }
 
+// Los penales de UNI para cajas(): todos › situación › motivo. Para que
+// cada caja que se ve tenga lugar para su nombre: de cada situación se ven
+// los motivos con al menos el 10% de sus penales (hasta 4) y el resto va en
+// "Otros"; los de una situación con menos del 15% de todos (o sin ninguno
+// que llegue al 10%), en una sola caja; las situaciones con menos del 8%,
+// juntas en "Otras".
+// Tocar una de ésas la abre. Cada caja: "X de Y · Z%" de la
+// de arriba.
+const MAX_MOTIVOS = 4, MIN_MOTIVO = 0.1, POCAS = 0.15, MIN_SITUACION = 0.08;
+// el nombre en dos renglones si es largo (las cajas no cortan solas)
+// (escapado: es texto de la base)
+const enDos = (txt) => {
+  const s = String(txt);
+  if (s.length <= 14 || !s.includes(" ")) return esc(s);
+  const medio = s.length / 2;
+  const corte = [...s.matchAll(/ /g)].map((m) => m.index).sort((a, b) => Math.abs(a - medio) - Math.abs(b - medio))[0];
+  return `${esc(s.slice(0, corte))}<br>${esc(s.slice(corte + 1))}`;
+};
+// En cada caja: el nombre, grande cuántos y abajo "de Y (Z%)" de la de
+// arriba. Las que se abren al tocarlas llevan ›. Los nombres van escapados:
+// Plotly entiende algunas etiquetas HTML (<br> y <span> son nuestras).
+const grande = (n, de) => `<span style="font-size:22px">${n}</span><br>de ${de} (${pct(n, de)}%)`;
+const nPenales = (n) => `${n} ${n === 1 ? "penal" : "penales"}`;
+// Los ids unen situación y motivo con un separador que no puede venir en un
+// texto escrito (los de un partido cargado a mano son libres: "/" sí puede).
+export const SEP = "\u001f";
+export function arbolPenales(uni) {
+  const total = uni.reduce((s, f) => s + f.uni, 0);
+  const nodos = [{ id: "todos", padre: "", rotulo: `${nPenales(total)} de UNI`, valor: total, color: "#13161b", texto: "",
+    detalle: "" }];
+  // de: la caja de arriba (su cantidad y cómo se llama, para el detalle)
+  const motivo = (id, padre, f, de, deNombre, color) => nodos.push({ id, padre, rotulo: enDos(f.motivo), valor: f.uni, color,
+    texto: grande(f.uni, de), detalle: `${xdey(f.uni, de)} de ${deNombre}` });
+  const sits = new Map();
+  for (const f of uni) sits.set(f.situacion, [...(sits.get(f.situacion) ?? []), f]);
+  const orden = [...sits].map(([s, fs]) => [s, fs, fs.reduce((a, f) => a + f.uni, 0)]).sort((a, b) => b[2] - a[2]);
+  const chicas = orden.filter(([, , v]) => v / total < MIN_SITUACION);
+  let padreSit = "todos";
+  if (chicas.length > 1) {
+    const v = chicas.reduce((a, [, , x]) => a + x, 0);
+    padreSit = "otras";
+    nodos.push({ id: padreSit, padre: "todos", rotulo: `Otras · ${v} de ${total} (${pct(v, total)}%) ›`, valor: v, color: NEUTRO,
+      texto: "", detalle: `${xdey(v, total)} de todos` });
+  }
+  for (const [s, fs, v] of orden) {
+    const chica = chicas.length > 1 && chicas.some(([c]) => c === s);
+    const color = SIT_COLOR.get(s) ?? NEUTRO, claro = aclarar(color), id = `s${SEP}${s}`, nombre = esc(s);
+    // › sólo si al tocarla aparece algo que no se ve (sus motivos, adentro de "Otras")
+    nodos.push({ id, padre: chica ? padreSit : "todos", rotulo: `${nombre} · ${v} de ${total} (${pct(v, total)}%)${chica ? " ›" : ""}`,
+      valor: v, color, texto: "", detalle: `${xdey(v, total)} de todos` });
+    const mots = [...fs].sort((a, b) => b.uni - a.uni);
+    if (chica) {   // adentro de "Otras": sus motivos, al abrirla
+      for (const f of mots) motivo(`${id}${SEP}${f.motivo}`, id, f, v, nombre, claro);
+      continue;
+    }
+    let vistos = mots.filter((f, i) => i < MAX_MOTIVOS && f.uni / v >= MIN_MOTIVO);
+    if (mots.length - vistos.length === 1) vistos = mots.slice(0, vistos.length + 1);   // "Otros" de uno solo, no
+    if (mots.length > 1 && (v / total < POCAS || !vistos.length)) {
+      // no entran (o ninguno se destaca): una sola caja que se abre
+      const idt = `${id}${SEP}${SEP}todos`;
+      nodos.push({ id: idt, padre: id, rotulo: `${mots.length} motivos ›`, valor: v, color: claro, texto: "tocá para<br>verlos",
+        detalle: `los ${nPenales(v)} de ${nombre}` });
+      for (const f of mots) motivo(`${idt}${SEP}${f.motivo}`, idt, f, v, nombre, claro);
+      continue;
+    }
+    for (const f of vistos) motivo(`${id}${SEP}${f.motivo}`, id, f, v, nombre, claro);
+    const resto = mots.slice(vistos.length);
+    if (!resto.length) continue;
+    const vr = resto.reduce((a, f) => a + f.uni, 0), idr = `${id}${SEP}${SEP}otros`, mas = aclarar(claro, 0.3);
+    nodos.push({ id: idr, padre: id, rotulo: "Otros ›", valor: vr, color: mas, texto: `${grande(vr, v)}<br>${resto.length} motivos`,
+      detalle: `${xdey(vr, v)} de ${nombre}` });
+    for (const f of resto) motivo(`${idr}${SEP}${f.motivo}`, idr, f, vr, `Otros (${nombre})`, mas);
+  }
+  return nodos;
+}
+
+// Arriba del gráfico, la respuesta en una frase (sin decir si está bien o mal).
+export function frasePenales(uni) {
+  const total = uni.reduce((s, f) => s + f.uni, 0);
+  if (total === 1) return html`El único penal de UNI fue en <b>${uni[0].situacion}</b>: <b>${uni[0].motivo}</b>.`;
+  const sits = new Map();
+  for (const f of uni) sits.set(f.situacion, (sits.get(f.situacion) ?? 0) + f.uni);
+  const v = Math.max(...sits.values());
+  const arriba = [...sits].filter(([, x]) => x === v).map(([s]) => s);
+  const y = (xs, f) => xs.map((x, i) => html`${i ? (i === xs.length - 1 ? " y " : ", ") : ""}${f(x)}`);
+  let primera;
+  if (v === total) primera = html`Los ${total} penales de UNI fueron en <b>${arriba[0]}</b>.`;
+  else if (arriba.length === 1) primera = html`<b>${arriba[0]}</b> tiene ${v} de los ${total} penales de UNI.`;
+  else if (arriba.length <= 3) primera = html`${y(arriba, (s) => html`<b>${s}</b>`)} tienen ${v} de los ${total} penales de UNI cada una.`;
+  else primera = html`Los ${total} penales de UNI están repartidos entre ${sits.size} situaciones.`;
+  const max = Math.max(...uni.map((f) => f.uni));
+  const top = uni.filter((f) => f.uni === max);
+  if (top.length > 3 || max === 1) return primera;   // (con 1 no se repite ninguno)
+  const nombres = y(top, (f) => html`<b>${f.motivo}</b>${sits.size > 1 ? ` (en ${f.situacion})` : ""}`);
+  return html`${primera} ${top.length > 1 ? "Los motivos que más se repiten" : "El motivo que más se repite"}: ${nombres}, ${
+    top.length > 1 ? `${nPenales(max)} cada uno` : nPenales(max)}.`;
+}
+
 function penalesDetalle(lz, t, pens) {
   const sits = porSituacion(pens);
   const [c1, c2] = lz.columnas(2, "large");
@@ -378,23 +476,9 @@ function penalesDetalle(lz, t, pens) {
   c2.titulo("Los de UNI: situación y motivo");
   const uni = pens.filter((f) => f.uni);
   if (uni.length) {
-    const sitU = new Map();
-    for (const f of uni) sitU.set(f.situacion, (sitU.get(f.situacion) ?? 0) + f.uni);
-    const etq = [], pad = [], val = [], col = [];
-    for (const [s, v] of sitU) {
-      etq.push(s);
-      pad.push("");
-      val.push(v);
-      col.push(SIT_COLOR.get(s) ?? NEUTRO);
-    }
-    for (const f of uni) {
-      etq.push(f.motivo);
-      pad.push(f.situacion);
-      val.push(f.uni);
-      col.push(aclarar(SIT_COLOR.get(f.situacion) ?? NEUTRO));
-    }
-    c2.grafico(sol(etq, pad, val, col));
-    nota(c2, "Adentro, dónde; afuera, el motivo. Tocá una parte para abrirla.");
+    c2.html(html`<p>${frasePenales(uni)}</p>`);
+    c2.grafico(cajas(arbolPenales(uni), { alto: 480 }));
+    nota(c2, "Cada caja es del tamaño de sus penales. Las que tienen › se abren al tocarlas; arriba queda el camino para volver.");
     const mot = [...uni].sort((a, b) => b.uni - a.uni).slice(0, 10);
     c2.desplegable("Ver la lista de motivos").html(tabla(["Motivo", "Situación", "UNI", "Rival"],
       mot.map((f) => [f.motivo, f.situacion, f.uni, f.rival])));

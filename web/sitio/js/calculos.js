@@ -730,6 +730,26 @@ export function temporada(partidos, anio, categoria) {
   return { anio, partidos: ps, totales: sumar(ps), n_partidos: ps.length, planilla: false, serie_22: serie22(ps) };
 }
 
+// (no está en el Python) Torneos que se pueden ver aparte en VER: los
+// partidos cuya categoría de Uni-Dat tiene esa palabra ("Primera oro f4",
+// "Primera f5 oro", "PRIMERA CSF"). [id, nombre, prueba]
+// (la palabra sola: "Primera-Oro", "Primera (Oro)" sí; "Tesoro" no)
+export const TORNEOS = [["oro", "Copa de Oro", /(^|[^\p{L}\p{N}])oro([^\p{L}\p{N}]|$)/iu],
+  ["csf", "Copa Santa Fe", /(^|[^\p{L}\p{N}])csf([^\p{L}\p{N}]|$)/iu]];
+
+// Los torneos con partidos en la temporada t: [[id, nombre]].
+export function torneosDe(t) {
+  if (t.planilla) return [];
+  return TORNEOS.filter(([, , re]) => t.partidos.some((p) => re.test(str(p.categoria ?? "")))).map(([id, n]) => [id, n]);
+}
+
+// La temporada t con sólo los partidos de ese torneo.
+export function torneo(t, id) {
+  const re = TORNEOS.find(([x]) => x === id)[2];
+  const ps = t.partidos.filter((p) => re.test(str(p.categoria ?? "")));
+  return { anio: t.anio, partidos: ps, totales: sumar(ps), n_partidos: ps.length, planilla: false, serie_22: serie22(ps) };
+}
+
 // una() de vistas.py: la temporada de un solo partido (para reusar las
 // secciones). En la planilla, el partido es su propio total.
 export function una(p, t) {
