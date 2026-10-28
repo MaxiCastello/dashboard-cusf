@@ -106,11 +106,25 @@ function conLlave(o, llave) {
 
 // Plotly guarda y cambia lo que recibe: le llega una copia, así la figura
 // sigue siendo la que se comparó en las pruebas.
+// En una pantalla táctil (el celular), arrastrar un dedo sobre un gráfico
+// hacía zoom y lo desarmaba (pedido del usuario, 28 oct): ahí los gráficos
+// quedan quietos y el dedo mueve la página; para agrandar, los dos dedos
+// del celular (agranda la página entera). Tocar sigue andando (el
+// cartelito, las cajas que se abren). En la compu, igual que siempre.
+const tactil = () => typeof matchMedia === "function" && matchMedia("(hover: none)").matches;
+function quieto(layout) {
+  layout.dragmode = false;
+  for (const k of Object.keys(layout)) if (/^[xy]axis\d*$/.test(k)) layout[k] = { ...layout[k], fixedrange: true };
+  for (const k of ["xaxis", "yaxis"]) layout[k] = { ...layout[k], fixedrange: true };
+  if (layout.polar) layout.polar = { ...layout.polar, dragmode: false };
+}
+
 export function dibujar(el, fig) {
   dibujadas.set(el, fig);
   for (const viejo of conLetras.keys()) if (!viejo.isConnected) conLetras.delete(viejo);   // los de otro año, ya sacados
   conLetras.set(el, letrasLlegadas);
   const { data, layout } = structuredClone(fig);
+  if (tactil()) quieto(layout);
   const w = ancho(el);
   const llave = `cusf-letras-${letrasLlegadas}`;
   const hecho = window.Plotly.newPlot(el, conLlave(data, llave), conLlave({
@@ -349,13 +363,12 @@ export function radar(ejes, series, alto = 380) {
 // otras adentro la abre sola (arriba queda el camino para volver). hondo:
 // cuántos niveles se ven a la vez.
 export function cajas(nodos, { alto = 420, hondo = 3 } = {}) {
-  const tactil = typeof matchMedia === "function" && matchMedia("(hover: none)").matches;
   const data = [{
     branchvalues: "total", ids: nodos.map((n) => n.id), labels: nodos.map((n) => n.rotulo),
     parents: nodos.map((n) => n.padre), values: nodos.map((n) => n.valor), customdata: nodos.map((n) => n.texto),
     hovertext: nodos.map((n) => n.detalle), marker: { colors: nodos.map((n) => n.color), line: { color: "#0a0c0f", width: 2 } },
     texttemplate: "<b>%{label}</b><br>%{customdata}",
-    ...(tactil ? { hoverinfo: "none" } : { hovertemplate: "<b>%{label}</b><br>%{hovertext}<extra></extra>" }),
+    ...(tactil() ? { hoverinfo: "none" } : { hovertemplate: "<b>%{label}</b><br>%{hovertext}<extra></extra>" }),
     textfont: { color: nodos.map((n) => (n.padre ? "#0a0c0f" : "#e8eaf0")), size: 13 }, textposition: "top left",
     tiling: { pad: 3 }, pathbar: { visible: true, thickness: 26, textfont: { size: 14, color: "#e8eaf0" } }, maxdepth: hondo,
     type: "treemap",
