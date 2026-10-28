@@ -7,7 +7,10 @@ import { test } from "node:test";
 
 import { partidosBase, sumar, temporada, torneo, torneosDe, TORNEOS } from "../sitio/js/calculos.js";
 import { cajas } from "../sitio/js/graficos.js";
-import { arbolPenales, frasePenales, SEP } from "../sitio/js/vistas.js";
+import { esc } from "../sitio/js/formato.js";
+import { cajasPenales } from "../sitio/js/informe.js";
+import { NEUTRO } from "../sitio/js/tema.js";
+import { arbolPenales, colorSituacion, frasePenales, partesFrasePenales, SEP } from "../sitio/js/vistas.js";
 import { filasDe, leer } from "./_referencia.js";
 
 const pen = (situacion, motivo, uni, rival = 0) => ({ situacion, motivo, uni, rival });
@@ -143,6 +146,26 @@ test("la frase de arriba: dónde y el motivo que más se repite (empates, uno so
   assert.equal(f(["A", "B", "C", "D"].map((m) => pen("Ruck", m, 2))), "Los 8 penales de UNI fueron en <b>Ruck</b>.");
   // lo que viene de la base va escapado
   assert.ok(f([pen("Ruck", "<img src=x>", 2)]).includes("&lt;img src=x&gt;"));
+});
+
+test("la frase en pedazos (para el PDF) dice lo mismo que la de la página, con las mismas negritas", () => {
+  const casos = [[pen("Ruck", "Retener pelota", 25), pen("Juego", "Offside", 20), pen("Ruck", "Pesca", 3)],
+    [pen("Ruck", "A", 1)], [pen("Ruck", "A", 5), pen("Juego", "B", 4), pen("Juego", "C", 1)], [pen("Ruck", "<img src=x>", 2)]];
+  for (const uni of casos) {
+    const partes = partesFrasePenales(uni);
+    assert.equal(String(frasePenales(uni)), partes.map(([t, b]) => (b ? `<b>${esc(t)}</b>` : esc(t))).join(""));
+  }
+});
+
+test("las cajas del PDF: cada situación con su color, sus motivos de más a menos y el total", () => {
+  const uni = [pen("Juego", "B", 4), pen("Ruck", "A", 5), pen("Raro", "C", 1), pen("Juego", "D", 6)];
+  const b = cajasPenales(uni);
+  assert.equal(b.tipo, "cajas");
+  assert.equal(b.total, 16);
+  assert.deepEqual(b.situaciones.map((s) => [s.nombre, s.valor]), [["Juego", 10], ["Ruck", 5], ["Raro", 1]]);
+  assert.deepEqual(b.situaciones[0].motivos, [{ nombre: "D", valor: 6 }, { nombre: "B", valor: 4 }]);
+  assert.deepEqual(b.situaciones.map((s) => s.color), [colorSituacion("Juego"), colorSituacion("Ruck"), NEUTRO]);
+  assert.deepEqual(b.frase, partesFrasePenales(uni));
 });
 
 test("cajas(): la figura de Plotly (en la compu, con el detalle al pasar el mouse)", () => {

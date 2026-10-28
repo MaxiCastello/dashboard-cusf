@@ -8,6 +8,7 @@ import { test } from "node:test";
 
 import * as C from "../sitio/js/calculos.js";
 import { informe } from "../sitio/js/informe.js";
+import { sinCajas } from "./_aproposito.js";
 import { armar } from "./_armar.js";
 import { PRUEBAS, filasDe, leer } from "./_referencia.js";
 
@@ -28,6 +29,7 @@ for (const sub of ["base", "demo"]) {
       const p = e.partido === null ? null : temp.t.partidos.findLast((x) => x.id === e.partido);
       assert.ok(e.partido === null || p, `${sub} ${e.anio}: la página no tiene el partido ${e.partido}`);
       const hecho = comoJson(informe(temp.t, temp.categoria, p));
+      hecho.bloques = sinCajas(hecho.bloques);
       const donde = `${sub} ${e.titulo}`;
       for (const k of ["titulo", "pie", "archivo"]) assert.equal(hecho[k], e[k], `${donde}: ${k}`);
       assert.equal(hecho.bloques.length, e.bloques.length, `${donde}: ${hecho.bloques.length} bloques y el Python ${e.bloques.length}`);

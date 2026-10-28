@@ -15,6 +15,7 @@ import { informe } from "../sitio/js/informe.js";
 import { armarPdf } from "../sitio/js/pdf.js";
 import { PLANILLA_2025 } from "../sitio/js/planilla2025.js";
 import { leerJson } from "../sitio/js/python.js";
+import { sinCajas } from "./_aproposito.js";
 import { jsPDF } from "./_informe_pdf.js";
 
 function todos(unidat, manuales, planilla, pdf) {
@@ -27,7 +28,7 @@ function todos(unidat, manuales, planilla, pdf) {
     for (const [categoria, t] of grupos) {
       for (const p of [null, ...t.partidos]) {
         const inf = informe(t, categoria, p);
-        const x = { anio, categoria, partido: p ? p.id : null, ...inf };
+        const x = { anio, categoria, partido: p ? p.id : null, ...inf, bloques: sinCajas(inf.bloques) };
         if (pdf) x.paginas = armarPdf(jsPDF, inf.bloques, { titulo: inf.titulo, pie: inf.pie, generado: "Generado hoy" }).getNumberOfPages();
         out.push(x);
       }

@@ -15,7 +15,8 @@ import { etiqueta, resultado, tacklesTemporada, una } from "./calculos.js";
 import { coma, conSigno, fijo, pct, unDecimal, xdey } from "./formato.js";
 import { OBJETIVOS, evaluar, minutosConUnoMenos, temporada as objetivoTemporada } from "./objetivos.js";
 import { capitalizar, conDefecto, esVerdad, mayuscula, str } from "./python.js";
-import { ORIGEN, RESULTADO, cuantos, desc, hechos, intentos, origenesTries, pateo, pen, porSituacion } from "./vistas.js";
+import { ORIGEN, RESULTADO, colorSituacion, cuantos, desc, hechos, intentos, origenesTries, partesFrasePenales, pateo, pen, porSituacion }
+  from "./vistas.js";
 
 
 // "4 jul" (la fecha de la etiqueta corta) y "4 jul 2026"
@@ -122,6 +123,18 @@ function formaciones(t) {
   return out;
 }
 
+// Los de UNI, en cajas como en la pestaña (el treemap; no está en el informe
+// del Python: lo pidió el usuario el 28 oct). Cada situación con sus motivos,
+// de más a menos; pdf.js decide cuáles entran con nombre.
+export function cajasPenales(uni) {
+  const sits = new Map();
+  for (const f of uni) sits.set(f.situacion, [...(sits.get(f.situacion) ?? []), f]);
+  const situaciones = [...sits].map(([s, fs]) => ({ nombre: str(s), color: colorSituacion(s), valor: fs.reduce((a, f) => a + f.uni, 0),
+    motivos: [...fs].sort((a, b) => b.uni - a.uni).map((f) => ({ nombre: str(f.motivo), valor: f.uni })) }));
+  return { tipo: "cajas", titulo: "Los de UNI: situación y motivo", frase: partesFrasePenales(uni),
+    total: uni.reduce((s, f) => s + f.uni, 0), situaciones: situaciones.sort((a, b) => b.valor - a.valor) };
+}
+
 function penales(t) {
   const tot = t.totales, n = Math.max(t.n_partidos, 1);
   const pu = pen(tot), pr = pen(tot, "rival");
@@ -133,8 +146,12 @@ function penales(t) {
     return out;
   }
   out.push(mariposa("Dónde se cometen", porSituacion(tot.penales)));
+  const uni = tot.penales.filter((f) => f.uni);
+  if (uni.length) {
+    out.push(cajasPenales(uni), nota("Cada caja es del tamaño de sus penales: la situación y, adentro, sus motivos."));
+  }
   // los de UNI, de más a menos (los 10 primeros)
-  const mot = tot.penales.filter((f) => f.uni).sort((a, b) => b.uni - a.uni).slice(0, 10);
+  const mot = [...uni].sort((a, b) => b.uni - a.uni).slice(0, 10);
   if (mot.length) {
     out.push(tabla([["Los motivos de UNI", 3, "izq"], ["Situación", 1.6, "izq"], ["UNI", 1, "der"], ["Rival", 1, "der"]],
       mot.map((f) => [f.motivo, f.situacion, f.uni, f.rival])));

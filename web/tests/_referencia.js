@@ -9,7 +9,7 @@ import process from "node:process";
 import { leerJson } from "../sitio/js/python.js";
 
 export const PRUEBAS = resolve(import.meta.dirname, "../../../dashboard-cusf.pruebas");
-export const REF = process.env.REFERENCIA ?? join(PRUEBAS, "referencia_2026-10-23");
+export const REF = process.env.REFERENCIA ?? join(PRUEBAS, "referencia_2026-10-27");
 
 function leerArchivo(f) {
   if (!existsSync(f)) {

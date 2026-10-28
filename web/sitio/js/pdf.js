@@ -13,7 +13,10 @@
 //   cambia por la misma sin tilde, o por "?" (nunca queda en blanco).
 //
 // No usa la página (sin document): las pruebas lo corren en Node.
+import { pct } from "./formato.js";
 import { LETRAS, TIENE, ESCUDO } from "./pdf-recursos.js";
+import { aclarar } from "./piezas.js";
+import { NEUTRO } from "./tema.js";
 
 export const ANCHO = 400, ALTO = 711;
 const M = 20, CW = ANCHO - 2 * M;   // margen y ancho útil
@@ -534,7 +537,232 @@ function objetivos(h, b) {
   h.y += 4;
 }
 
-const DIBUJAR = { encabezado, seccion, kpis, anillos, mariposa, tabla, nota, frase, marcador, objetivos };
+// ── Los penales de UNI en cajas (treemap) ───────────────────────────────────
+//
+// Como en la pestaña, pero quieto (en el PDF no se abre nada): cada situación
+// es una caja de su color con su nombre arriba, y adentro sus motivos en el
+// mismo color más claro. Una caja que no tiene lugar para su nombre y su
+// número no se dibuja vacía: ese motivo pasa a "Otros" (y una situación que
+// no entra, a "Otras situaciones"). La lista de motivos va en la tabla de abajo.
+
+const CAJ_ALTO = 236, CAJ_CAB = 15, CAJ_GAP = 2, CAJ_PAD = 2.5;
+const CAJ_FRASE = 8.6, CAJ_RENGLON = 11.5;
+const MIN_SIT = 0.08, MAX_MOTIVOS = 4, MIN_MOTIVO = 0.1;   // los de la pestaña (vistas.js)
+
+// ¿va letra blanca sobre este color?
+function oscuro(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.5;
+}
+
+// Cajas de tamaño proporcional a cada valor (de más a menos), lo más
+// cuadradas posible (el "squarified" de Bruls y otros, el de Plotly).
+function repartir(valores, x, y, w, h) {
+  const out = [];
+  let resto = valores.reduce((s, v) => s + v, 0), i = 0;
+  while (i < valores.length) {
+    const area = (v) => (v / resto) * w * h, lado = Math.min(w, h);
+    const peor = (fila) => {
+      const s = fila.reduce((a, v) => a + area(v), 0);
+      return Math.max(...fila.map((v) => Math.max((lado * lado * area(v)) / (s * s), (s * s) / (lado * lado * area(v)))));
+    };
+    const fila = [valores[i]];
+    while (i + fila.length < valores.length && peor([...fila, valores[i + fila.length]]) <= peor(fila)) fila.push(valores[i + fila.length]);
+    const grosor = fila.reduce((a, v) => a + area(v), 0) / lado;
+    let pos = 0;
+    for (const v of fila) {
+      const largo = area(v) / grosor;
+      out.push(w >= h ? { x, y: y + pos, w: grosor, h: largo } : { x: x + pos, y, w: largo, h: grosor });
+      pos += largo;
+    }
+    if (w >= h) [x, w] = [x + grosor, w - grosor];
+    else [y, h] = [y + grosor, h - grosor];
+    resto -= fila.reduce((a, v) => a + v, 0);
+    i += fila.length;
+  }
+  return out;
+}
+
+// Lo que entra en una caja de w × alto: el nombre (hasta 2 renglones), el
+// número grande y, si hay lugar, "de Y (Z%)" y los renglones de `extra`.
+// null: no entran ni el nombre y el número.
+function encaja(h, c, w, alto) {
+  const ancho = w - 10;
+  if (ancho <= 0) return null;
+  h.letra("DMSans-Bold", 7);
+  const rs = h.renglones(c.nombre, ancho);
+  // (splitTextToSize corta una palabra larga por la mitad: eso tampoco entra)
+  const palabras = (xs) => xs.join(" ").split(/\s+/).filter(Boolean).join(" ");
+  if (rs.length > 2 || rs.some((r) => h.ancho(r) > ancho) || palabras(rs) !== palabras([seguro(c.nombre, "DMSans-Bold")])) return null;
+  h.letra("Bebas", 17);
+  const base = 4 + rs.length * 8 + 15;   // la línea del número
+  if (h.ancho(String(c.valor)) > ancho || base + 4 > alto) return null;
+  h.letra("DMSans", 6.3);
+  const conDe = Boolean(c.de) && base + 10.5 <= alto && h.ancho(c.de) <= ancho;
+  // los renglones de abajo, en orden, mientras entren; si quedan afuera, el
+  // último dice cuántos faltan ("y 3 más")
+  const extra = [], todos = c.extra ?? [];
+  let y = base + (conDe ? 9 : 0);
+  for (const t of todos) {
+    if (y + 9.5 > alto || h.ancho(t) > ancho) break;
+    extra.push(t);
+    y += 8;
+  }
+  if (extra.length < todos.length && extra.length) extra[extra.length - 1] = `y ${todos.length - extra.length + 1} más`;
+  return { rs, base, conDe, extra };
+}
+
+function caja(h, c, r, lugar, radio = 2) {
+  h.doc.setFillColor(c.color);
+  h.doc.roundedRect(r.x, r.y, r.w, r.h, radio, radio, "F");
+  if (!lugar) return;
+  const color = oscuro(c.color) ? "#ffffff" : C.tinta, x = r.x + 5;
+  h.letra("DMSans-Bold", 7, color);
+  lugar.rs.forEach((t, i) => h.texto(t, x, r.y + 10 + i * 8));
+  h.letra("Bebas", 17, color);
+  h.texto(c.valor, x, r.y + lugar.base);
+  h.letra("DMSans", 6.3, color);
+  if (lugar.conDe) h.texto(c.de, x, r.y + lugar.base + 9);
+  lugar.extra.forEach((t, i) => h.texto(t, x, r.y + lugar.base + (lugar.conDe ? 17 : 8) + i * 8));
+}
+
+const adentro = (r, d) => ({ x: r.x + d, y: r.y + d, w: r.w - 2 * d, h: r.h - 2 * d });
+
+// Una situación abierta (su nombre arriba y sus motivos adentro) o, si no
+// entran, cerrada (una sola caja). null: no entra ni así.
+function planSituacion(h, s, r, total) {
+  const box = adentro(r, CAJ_GAP / 2);
+  const dato = `de ${total} (${pct(s.valor, total)}%)`;
+  h.letra("DMSans-Bold", 7);
+  const cab = [`${s.nombre} · ${s.valor} ${dato}`, `${s.nombre} · ${s.valor} (${pct(s.valor, total)}%)`]
+    .find((t) => h.ancho(t) <= box.w - 8);
+  const claro = aclarar(s.color);
+  const dentro = { x: box.x + CAJ_PAD, y: box.y + CAJ_CAB, w: box.w - 2 * CAJ_PAD, h: box.h - CAJ_CAB - CAJ_PAD };
+  const mots = s.motivos;
+  if (cab && dentro.h > 0) {
+    let vistos = mots.filter((m, i) => i < MAX_MOTIVOS && m.valor / s.valor >= MIN_MOTIVO).length;
+    if (mots.length - vistos === 1) vistos++;   // "Otros" de uno solo, no
+    for (; vistos >= 0; vistos--) {
+      const resto = mots.slice(vistos), vr = resto.reduce((a, m) => a + m.valor, 0);
+      const cs = mots.slice(0, vistos).map((m) => ({ ...m, color: claro }));
+      if (resto.length === 1) cs.push({ ...resto[0], color: claro });
+      else if (resto.length && vistos) cs.push({ nombre: `Otros (${resto.length} motivos)`, valor: vr, color: aclarar(claro, 0.3) });
+      // ninguno entra con su caja: una sola, con la lista adentro
+      else if (resto.length) cs.push({ nombre: `${resto.length} motivos`, valor: vr, color: claro, extra: resto.map((m) => `${m.nombre} · ${m.valor}`) });
+      for (const c of cs) c.de = cs.length > 1 ? `de ${s.valor} (${pct(c.valor, s.valor)}%)` : "";
+      const rs = repartir(cs.map((c) => c.valor), dentro.x, dentro.y, dentro.w, dentro.h).map((q) => adentro(q, CAJ_GAP / 2));
+      const lugares = cs.map((c, i) => encaja(h, c, rs[i].w, rs[i].h));
+      if (lugares.every(Boolean)) return { s, box, cab, cajas: cs.map((c, i) => [c, rs[i], lugares[i]]) };
+    }
+  }
+  // cerrada: el nombre, el número, de cuántos y sus motivos (los que entren)
+  const c = { nombre: s.nombre, valor: s.valor, color: s.color, de: dato,
+    extra: mots.length === 1 ? [mots[0].nombre] : mots.map((m) => `${m.nombre} · ${m.valor}`) };
+  const lugar = encaja(h, c, box.w, box.h);
+  return lugar ? { s, box, cajas: [[c, box, lugar]] } : null;
+}
+
+function cajas(h, b) {
+  h.lugar(primero(h, b, h.cola));
+  h.letra("DMSans-Bold", 8.5, C.tinta);
+  h.texto(b.titulo, M, h.y + 9, { max: CW - 80 });
+  h.letra("DMMono", 6.5, C.gris);
+  h.texto(`${b.total} ${b.total === 1 ? "PENAL" : "PENALES"} DE UNI`, M + CW, h.y + 9, { alinear: "right", espacio: 0.5 });
+  h.y += 18;
+  renglonesMixtos(h, b.frase, CW).forEach((renglon) => {
+    for (const [t, negrita, x] of renglon) {
+      h.letra(negrita ? "DMSans-Bold" : "DMSans", CAJ_FRASE, C.tinta);
+      h.texto(t, M + x, h.y + 8);
+    }
+    h.y += CAJ_RENGLON;
+  });
+  h.y += 6;
+  const area = { x: M, y: h.y, w: CW, h: CAJ_ALTO };
+  // las situaciones chicas (si son más de una) van juntas, como en la pestaña;
+  // si una no entra, se suma a ellas (la más chica primero)
+  let sueltas = b.situaciones.filter((s) => s.valor / b.total >= MIN_SIT), chicas = b.situaciones.filter((s) => !sueltas.includes(s));
+  if (chicas.length === 1) [sueltas, chicas] = [b.situaciones, []];
+  let planes;
+  for (;;) {
+    const grupos = [...sueltas];
+    if (chicas.length) {
+      const v = chicas.reduce((a, s) => a + s.valor, 0);
+      grupos.push({ otras: true, nombre: "Otras situaciones", valor: v, color: NEUTRO,
+        de: `de ${b.total} (${pct(v, b.total)}%)`, extra: chicas.map((s) => `${s.nombre} · ${s.valor}`) });
+      grupos.sort((a, c) => c.valor - a.valor);
+    }
+    const rs = repartir(grupos.map((g) => g.valor), area.x, area.y, area.w, area.h);
+    planes = grupos.map((g, i) => {
+      if (!g.otras) return planSituacion(h, g, rs[i], b.total);
+      const box = adentro(rs[i], CAJ_GAP / 2);
+      return { s: g, box, cajas: [[g, box, encaja(h, g, box.w, box.h)]] };   // (sin lugar: la caja sola)
+    });
+    const falta = planes.findLastIndex((p) => !p);
+    if (falta < 0 || !sueltas.length) break;
+    chicas = [...chicas, grupos[falta]].sort((a, c) => c.valor - a.valor);
+    sueltas = sueltas.filter((s) => s !== grupos[falta]);
+  }
+  for (const p of planes) {
+    if (!p) continue;
+    if (p.cab) {
+      caja(h, { color: p.s.color }, p.box, null, 3);
+      h.letra("DMSans-Bold", 7, oscuro(p.s.color) ? "#ffffff" : C.tinta);
+      h.texto(p.cab, p.box.x + 5, p.box.y + 10.5);
+    }
+    for (const [c, r, lugar] of p.cajas) caja(h, c, r, lugar, p.cab ? 2 : 3);
+  }
+  h.y += CAJ_ALTO + 10;
+}
+
+// Los renglones de un texto con partes en negrita: [[texto, negrita, x]] por
+// renglón. Se corta después de un espacio (una palabra puede tener pedazos
+// en negrita y sin: "Juego)," se mide entera); una palabra más larga que el
+// renglón, letra por letra.
+function renglonesMixtos(h, partes, max) {
+  const palabras = [[]];
+  for (const [texto, negrita] of partes) {
+    for (const t of texto.split(/(?<= )/)) {
+      if (t) palabras.at(-1).push([t, negrita]);
+      if (t.endsWith(" ")) palabras.push([]);
+    }
+  }
+  const medir = (t, negrita) => {
+    h.letra(negrita ? "DMSans-Bold" : "DMSans", CAJ_FRASE);
+    return h.ancho(t);
+  };
+  const out = [[]];
+  let x = 0;
+  const poner = (t, negrita) => {
+    if (!out.at(-1).length && !t.trim()) return;   // sin espacio al principio del renglón
+    out.at(-1).push([t, negrita, x]);
+    x += medir(t, negrita);
+  };
+  const otro = () => {
+    out.push([]);
+    x = 0;
+  };
+  for (const p of palabras) {
+    const ancho = p.reduce((s, [t, n], i) => s + medir(i === p.length - 1 ? t.trimEnd() : t, n), 0);
+    if (out.at(-1).length && x + ancho > max) otro();
+    if (ancho <= max) {
+      for (const [t, n] of p) poner(t, n);
+      continue;
+    }
+    for (const [t, n] of p) {
+      for (const ch of t) {
+        if (out.at(-1).length && ch.trim() && x + medir(ch, n) > max) otro();
+        poner(ch, n);
+      }
+    }
+  }
+  // sin el espacio del final de cada renglón (no se ve, pero ocupa)
+  for (const r of out) if (r.length) r[r.length - 1][0] = r.at(-1)[0].trimEnd();
+  return out;
+}
+
+const altoCajas = (h, b) => 18 + renglonesMixtos(h, b.frase, CW).length * CAJ_RENGLON + 6 + CAJ_ALTO + 10;
+
+const DIBUJAR = { encabezado, seccion, kpis, anillos, mariposa, tabla, nota, frase, marcador, objetivos, cajas };
 
 // Lo primero de un bloque que no se puede cortar: una fila de números o de
 // anillos, un gráfico entero, el encabezado de una tabla y 3 renglones, una
@@ -555,6 +783,7 @@ function primero(h, b, cola = 0) {
     case "objetivos": return objAlto(b) + (b.items.length === 1 ? cola : 0);
     case "nota": return altoNota(h, b);
     case "frase": return altoFrase(h, b) - 10 + cola;
+    case "cajas": return altoCajas(h, b) - 10 + cola;
     default: return 0;
   }
 }

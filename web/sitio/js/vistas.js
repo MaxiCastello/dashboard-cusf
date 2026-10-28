@@ -19,6 +19,7 @@ import { ACENTO, AVISO, MAL, NEUTRO, RIVAL, UNI } from "./tema.js";
 
 // Situaciones de los penales: su color (Map: la situación viene de los datos)
 const SIT_COLOR = new Map([["Scrum", ACENTO], ["Line", "#9fb8ff"], ["Ruck", UNI], ["Maul", "#7be0a5"], ["Juego", AVISO]]);
+export const colorSituacion = (s) => SIT_COLOR.get(s) ?? NEUTRO;
 
 // Tipos de tackle (estilo.py: TK, TK_NOMBRE)
 const TK = [["pos", "Positivos", UNI], ["neu", "Neutrales", NEUTRO], ["neg", "Negativos", AVISO], ["err", "Errados", MAL]];
@@ -436,26 +437,29 @@ export function arbolPenales(uni) {
 }
 
 // Arriba del gráfico, la respuesta en una frase (sin decir si está bien o mal).
-export function frasePenales(uni) {
+// En pedazos [texto, negrita]: la página la escribe en HTML y el PDF con sus letras.
+export function partesFrasePenales(uni) {
+  const b = (t) => [String(t), true], t = (x) => [String(x), false];
   const total = uni.reduce((s, f) => s + f.uni, 0);
-  if (total === 1) return html`El único penal de UNI fue en <b>${uni[0].situacion}</b>: <b>${uni[0].motivo}</b>.`;
+  if (total === 1) return [t("El único penal de UNI fue en "), b(uni[0].situacion), t(": "), b(uni[0].motivo), t(".")];
   const sits = new Map();
   for (const f of uni) sits.set(f.situacion, (sits.get(f.situacion) ?? 0) + f.uni);
   const v = Math.max(...sits.values());
   const arriba = [...sits].filter(([, x]) => x === v).map(([s]) => s);
-  const y = (xs, f) => xs.map((x, i) => html`${i ? (i === xs.length - 1 ? " y " : ", ") : ""}${f(x)}`);
+  const y = (xs, f) => xs.flatMap((x, i) => [...(i ? [t(i === xs.length - 1 ? " y " : ", ")] : []), ...f(x)]);
   let primera;
-  if (v === total) primera = html`Los ${total} penales de UNI fueron en <b>${arriba[0]}</b>.`;
-  else if (arriba.length === 1) primera = html`<b>${arriba[0]}</b> tiene ${v} de los ${total} penales de UNI.`;
-  else if (arriba.length <= 3) primera = html`${y(arriba, (s) => html`<b>${s}</b>`)} tienen ${v} de los ${total} penales de UNI cada una.`;
-  else primera = html`Los ${total} penales de UNI están repartidos entre ${sits.size} situaciones.`;
+  if (v === total) primera = [t(`Los ${total} penales de UNI fueron en `), b(arriba[0]), t(".")];
+  else if (arriba.length === 1) primera = [b(arriba[0]), t(` tiene ${v} de los ${total} penales de UNI.`)];
+  else if (arriba.length <= 3) primera = [...y(arriba, (s) => [b(s)]), t(` tienen ${v} de los ${total} penales de UNI cada una.`)];
+  else primera = [t(`Los ${total} penales de UNI están repartidos entre ${sits.size} situaciones.`)];
   const max = Math.max(...uni.map((f) => f.uni));
   const top = uni.filter((f) => f.uni === max);
   if (top.length > 3 || max === 1) return primera;   // (con 1 no se repite ninguno)
-  const nombres = y(top, (f) => html`<b>${f.motivo}</b>${sits.size > 1 ? ` (en ${f.situacion})` : ""}`);
-  return html`${primera} ${top.length > 1 ? "Los motivos que más se repiten" : "El motivo que más se repite"}: ${nombres}, ${
-    top.length > 1 ? `${nPenales(max)} cada uno` : nPenales(max)}.`;
+  const nombres = y(top, (f) => [b(f.motivo), ...(sits.size > 1 ? [t(` (en ${f.situacion})`)] : [])]);
+  return [...primera, t(` ${top.length > 1 ? "Los motivos que más se repiten" : "El motivo que más se repite"}: `), ...nombres,
+    t(`, ${top.length > 1 ? `${nPenales(max)} cada uno` : nPenales(max)}.`)];
 }
+export const frasePenales = (uni) => html`${partesFrasePenales(uni).map(([x, negrita]) => (negrita ? html`<b>${x}</b>` : x))}`;
 
 function penalesDetalle(lz, t, pens) {
   const sits = porSituacion(pens);
