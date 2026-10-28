@@ -15,11 +15,8 @@ import { etiqueta, resultado, tacklesTemporada, una } from "./calculos.js";
 import { coma, conSigno, fijo, pct, unDecimal, xdey } from "./formato.js";
 import { OBJETIVOS, evaluar, minutosConUnoMenos, temporada as objetivoTemporada } from "./objetivos.js";
 import { capitalizar, conDefecto, esVerdad, mayuscula, str } from "./python.js";
-import { cuantos, desc, hechos, intentos, origenesTries, pateo, pen, porSituacion } from "./vistas.js";
+import { ORIGEN, RESULTADO, cuantos, desc, hechos, intentos, origenesTries, pateo, pen, porSituacion } from "./vistas.js";
 
-const RESULTADO = { G: "Ganado", P: "Perdido", E: "Empatado" };
-const ORIGEN = new Map([["unidat", "Cargado en Uni-Dat"], ["manual", "Cargado a mano en el tablero"],
-  ["planilla", "Planilla 2025 (sólo tackles)"]]);
 
 // "4 jul" (la fecha de la etiqueta corta) y "4 jul 2026"
 const fechaCorta = (p) => etiqueta(p, true).split(" · ")[0];

@@ -11,7 +11,7 @@ import { coma, conSigno, fijo, pct, unDecimal, xdey } from "./formato.js";
 import { acumulado, apiladas, barras, chances22, dona, lineas, mapaCalor, marcadorEnElPartido, mariposa, pesas, piruletas, radar, sol }
   from "./graficos.js";
 import { aclarar, anillos, html, kpis, tabla } from "./piezas.js";
-import { MIN_AMARILLA, MIN_ROJA, OBJETIVOS, evaluar, minutosConUnoMenos, temporada } from "./objetivos.js";
+import { MIN_AMARILLA, MIN_ROJA, OBJETIVOS, evaluar, minutosConUnoMenos, penales as penalesDe, temporada } from "./objetivos.js";
 import { capitalizar, conDefecto, enteroDeTexto, esVerdad, mayuscula, o, soloCifras, str } from "./python.js";
 import { ACENTO, AVISO, MAL, NEUTRO, RIVAL, UNI } from "./tema.js";
 
@@ -28,7 +28,7 @@ const FORMAS = [["Tries", 5, "tries", UNI], ["Tries penales", 7, "triesp", "#7be
   ["Penales a los palos", 3, "palos", "#9fb8ff"], ["Drops", 3, "drop", AVISO]];
 
 // (también las usa el informe PDF: informe.js)
-export const pen = (f, lado = "uni") => f.penales.reduce((s, x) => s + x[lado], 0);
+export const pen = penalesDe;
 export const hechos = (filas) => filas.reduce((s, j) => s + j.pos + j.neu + j.neg, 0);
 export const intentos = (filas) => hechos(filas) + filas.reduce((s, j) => s + j.err, 0);
 export const pateo = (f) => [f.puntos.conv_u + f.puntos.palos_u, f.puntos.convt_u + f.puntos.palost_u];
@@ -70,8 +70,8 @@ export function nota(lz, txt) {
 
 // ── Encabezado de un partido ────────────────────────────────────────────────
 
-const RESULTADO = { G: "Ganado", P: "Perdido", E: "Empatado" };
-const ORIGEN = new Map([["unidat", "Cargado en Uni-Dat"], ["manual", "Cargado a mano en el tablero"],
+export const RESULTADO = { G: "Ganado", P: "Perdido", E: "Empatado" };
+export const ORIGEN = new Map([["unidat", "Cargado en Uni-Dat"], ["manual", "Cargado a mano en el tablero"],
   ["planilla", "Planilla 2025 (sólo tackles)"]]);
 
 // El tanteo, arriba de las pestañas del partido (va antes que ellas).

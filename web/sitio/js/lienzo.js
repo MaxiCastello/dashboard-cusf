@@ -123,8 +123,18 @@ export class EnPagina extends Registro {
     super.grafico(fig);
     const div = this.poner(html`<div class="grafico"></div>`);
     const ahora = () => {
-      // si Plotly falla, a la consola (las pruebas de pantalla la miran)
-      const p = dibujar(div, fig).catch((e) => console.error("No se pudo dibujar un gráfico:", e));
+      // si Plotly falla, a la consola (las pruebas de pantalla la miran) y el
+      // resto de la pestaña sigue; si ni llegó a bajar, falla antes de la promesa
+      let p;
+      try {
+        p = dibujar(div, fig);
+      } catch (e) {
+        p = Promise.reject(e);
+      }
+      p = p.catch((e) => {
+        console.error("No se pudo dibujar un gráfico:", e);
+        if (!div.hasChildNodes()) div.textContent = "No se pudo dibujar este gráfico. Recargá la página.";
+      });
       pendientes.add(p);
       p.finally(() => pendientes.delete(p));
     };

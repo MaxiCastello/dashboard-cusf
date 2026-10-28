@@ -7,7 +7,8 @@ import { afterEach, test } from "node:test";
 
 import { leerCsvTackles } from "../sitio/js/calculos.js";
 import { armarComplemento, armarPartido, registrosDelCsv, valoresPartido } from "../sitio/js/carga.js";
-import { borrarManual, ErrorBase, guardarManual, ingresar, renovar } from "../sitio/js/fuente.js";
+import { borrarManual, ErrorBase, filasManuales, filasUnidat, guardarManual, ingresar, renovar, URL_BASE } from "../sitio/js/fuente.js";
+import { leer } from "./_referencia.js";
 
 const ID = "0f8fad5b-d9cb-469f-a165-70867728950e";
 const base = () => ({ ...valoresPartido(null), r: "Rowing", f: "2026-05-10" });
@@ -106,6 +107,18 @@ function supabase(respuestas) {
 }
 const TOKEN = { access_token: "TOKEN-ADMIN", refresh_token: "r1", expires_in: 3600 };
 
+test("lectura: los mismos pedidos que el Python, con la clave pública; sin la tabla de manuales sigue", async () => {
+  supabase([["/rest/v1/partidos?", 200, []], ["/rest/v1/partidos_manuales?", 200, []]]);
+  await filasUnidat();
+  assert.deepEqual(await filasManuales(), [[], true]);
+  assert.deepEqual(pedidos.map((p) => p.url.slice(URL_BASE.length)), leer("base", "pedidos.json"));
+  assert.ok(pedidos.every((p) => p.metodo === "GET" && p.cab.Authorization === "Bearer " + p.cab.apikey));
+  supabase([["/rest/v1/partidos_manuales?", 404, { code: "PGRST205" }]]);
+  assert.deepEqual(await filasManuales(), [[], false]);
+  supabase([["/rest/v1/partidos_manuales?", 404, { code: "PGRST116" }]]);
+  await assert.rejects(filasManuales(), { message: "La base rechazó el pedido (404)." });
+});
+
 test("login: el mail va en minúsculas y sin espacios; un admin entra", async () => {
   supabase([["grant_type=password", 200, TOKEN], ["/rest/v1/admins", 200, [{ user_id: "x" }]]]);
   const ses = await ingresar("  Admin@Club.COM ", "clave");
@@ -150,7 +163,12 @@ test("renovar: sólo si faltan 5 minutos o menos; si no se puede, la sesión ven
   assert.equal((await renovar(cerca)).token, "NUEVO");
   assert.equal(JSON.parse(pedidos[0].cuerpo).refresh_token, "r1");
   supabase([["grant_type=refresh_token", 400, { error_code: "refresh_token_not_found" }]]);
-  await assert.rejects(renovar(cerca), { message: "La sesión venció. Volvé a ingresar." });
+  await assert.rejects(renovar(cerca), { message: "La sesión venció. Volvé a ingresar.", codigo: 401 });
+  // un corte o la base caída no vencen la sesión, y no se guardó nada (sin sinRespuesta)
+  supabase([["grant_type=refresh_token", null]]);
+  await assert.rejects(renovar(cerca), (e) => e.codigo === null && !e.sinRespuesta && e.message.startsWith("No se pudo conectar"));
+  supabase([["grant_type=refresh_token", 503, {}]]);
+  await assert.rejects(renovar(cerca), { message: "La base rechazó el pedido (503).", codigo: 503 });
 });
 
 test("escribir: siempre con el token del admin; el id va en la URL sólo si es un uuid", async () => {

@@ -52,7 +52,13 @@ function hoy() {
 
 // El PDF, como archivo.
 async function armar(t, categoria, p) {
-  const [JsPDF, { armarPdf }] = await cargarPdf();
+  let JsPDF, armarPdf;
+  try {
+    [JsPDF, { armarPdf }] = await cargarPdf();
+  } catch (e) {
+    e.sinConexion = true;
+    throw e;
+  }
   const inf = informe(t, categoria, p);
   const doc = armarPdf(JsPDF, inf.bloques, { titulo: inf.titulo, pie: inf.pie, generado: hoy() });
   return new File([doc.output("blob")], inf.archivo, { type: "application/pdf" });
@@ -100,7 +106,11 @@ export function pestanaInforme(panel, t, categoria, p = null) {
       archivo = await armar(t, categoria, p);
     } catch (e) {
       console.error(e);
-      error.querySelector("span").textContent = "No se pudo armar el PDF. Revisá la conexión.";
+      // sin conexión, probar de nuevo sirve; con los datos de esta pantalla, no
+      error.querySelector("span").textContent = e?.sinConexion
+        ? "No se pudo armar el PDF. Revisá la conexión."
+        : "No se pudo armar el PDF de esta pantalla. Avisale a quien maneja el tablero.";
+      error.querySelector("[data-pdf=otra]").hidden = !e?.sinConexion;
       error.hidden = false;
     } finally {
       botones.forEach((b, i) => {

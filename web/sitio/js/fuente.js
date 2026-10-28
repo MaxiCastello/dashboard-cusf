@@ -168,7 +168,10 @@ export async function renovar(ses) {
     return sesionDe(await pedir("/auth/v1/token?grant_type=refresh_token", { metodo: "POST", json: { refresh_token: ses.refresh } }));
   } catch (e) {
     if (!(e instanceof ErrorBase)) throw e;
-    throw new ErrorBase("La sesión venció. Volvé a ingresar.");
+    // un corte o la base caída no vencen la sesión (el formulario no se pierde);
+    // tampoco se guardó nada: va sin sinRespuesta
+    if (e.codigo === null || e.codigo >= 500) throw new ErrorBase(e.message, e.codigo, e.detalle);
+    throw new ErrorBase("La sesión venció. Volvé a ingresar.", 401);
   }
 }
 

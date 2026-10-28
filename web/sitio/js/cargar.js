@@ -82,20 +82,15 @@ function intentosRecientes() {
   return (Array.isArray(t) ? t : []).filter((x) => typeof x === "number" && ahora() - x < VENTANA);
 }
 
-// La sesión, renovada si está por vencer. Si no se puede, hay que volver a
-// ingresar (como un 401).
+// La sesión, renovada si está por vencer. Si la base no la renueva, renovar
+// tira un 401 (hay que volver a ingresar); si se cortó, otro error.
 async function vigente() {
-  try {
-    const s = await renovar(estado.sesion);
-    if (s !== estado.sesion) {
-      estado.sesion = s;
-      guardar(SESION, s);
-    }
-    return s;
-  } catch (e) {
-    if (!(e instanceof ErrorBase)) throw e;
-    throw new ErrorBase(e.message, 401);
+  const s = await renovar(estado.sesion);
+  if (s !== estado.sesion) {
+    estado.sesion = s;
+    guardar(SESION, s);
   }
+  return s;
 }
 
 // ── La base ──────────────────────────────────────────────────────────────────
@@ -156,8 +151,8 @@ async function entrar(form, boton, err) {
     guardar(INTENTOS, []);
     adentro();
   } catch (ex) {
-    // cuenta lo que la base rechazó (no un corte de la conexión ni los campos vacíos)
-    if (ex instanceof ErrorBase && ex.codigo !== null) guardar(INTENTOS, [...intentos, ahora()]);
+    // cuenta lo que la base rechazó (no un corte, la base caída ni los campos vacíos)
+    if (ex instanceof ErrorBase && ex.codigo >= 400 && ex.codigo < 500) guardar(INTENTOS, [...intentos, ahora()]);
     mostrarErrores(err, [ex instanceof ErrorBase ? ex.message : "No se pudo ingresar. Probá de nuevo en un rato."]);
     if (!(ex instanceof ErrorBase)) console.error(ex);
     boton.disabled = false;
@@ -417,8 +412,13 @@ async function arrancar() {
       await vigente();
       adentro();
     } catch (e) {
-      olvidar();
-      login(e instanceof ErrorBase ? e.message : "La sesión venció. Volvé a ingresar.");
+      if (e instanceof ErrorBase && e.codigo !== 401) {
+        // se cortó: la sesión puede seguir sirviendo
+        soloAviso("error", e.message + " Recargá la página.");
+      } else {
+        olvidar();
+        login(e instanceof ErrorBase ? e.message : "La sesión venció. Volvé a ingresar.");
+      }
     }
   }
   document.body.dataset.listo = "1";   // para las pruebas: ya está todo armado
