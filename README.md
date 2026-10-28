@@ -1,21 +1,22 @@
 # Tablero del Club Universitario de Santa Fe – Rugby
 
-[![Python](https://img.shields.io/badge/Python-3.13-blue?logo=python&logoColor=white)](https://www.python.org/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-app-red?logo=streamlit)](https://streamlit.io/)
-[![Plotly](https://img.shields.io/badge/Plotly-visualizaciones-3DDC84?logo=plotly)](https://plotly.com/)
+[![JavaScript](https://img.shields.io/badge/JavaScript-página_web-F7DF1E?logo=javascript&logoColor=black)](https://developer.mozilla.org/es/docs/Web/JavaScript)
+[![Plotly](https://img.shields.io/badge/Plotly-visualizaciones-3DDC84?logo=plotly)](https://plotly.com/javascript/)
+[![Cloudflare Pages](https://img.shields.io/badge/Cloudflare-Pages-F38020?logo=cloudflare&logoColor=white)](https://pages.cloudflare.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-datos-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
 
 Este proyecto es un **tablero interactivo** del **Club Universitario de Santa Fe** para seguir el
 rendimiento del equipo de rugby a lo largo de la temporada y partido por partido: puntos, formaciones
 fijas, penales, tarjetas, tackles y los objetivos que se pone el equipo.
 
-Acceso al tablero: [tablero-cusf.streamlit.app](https://tablero-cusf.streamlit.app/)
+Acceso al tablero: [cusf-tablero.pages.dev](https://cusf-tablero.pages.dev/)
 
 ---
 
 ## Qué se puede ver
 
-Arriba se elige la **temporada**, la **categoría** y si se mira **toda la temporada** o **un partido**.
+Arriba se elige la **temporada**, la **categoría** y si se mira **toda la temporada**, **un torneo**
+(Copa de Oro, Copa Santa Fe) o **un partido**.
 
 - **Resumen**: resultados, el marcador de cada partido, los puntos sumados a lo largo de la temporada,
   lo principal de UNI en números y los que más tacklearon.
@@ -28,7 +29,7 @@ Arriba se elige la **temporada**, la **categoría** y si se mira **toda la tempo
   jugadores y posición.
 - **Penales**: dónde y por qué se cometen, por tiempo, y las tarjetas con el tiempo jugado con uno menos.
 - **Tackles**: completados, tipos de tackle y el detalle por jugador.
-- **Informe**: un PDF con las tablas, para mandar o imprimir.
+- **Informe**: un PDF armado para leer en el celular, para mandar por WhatsApp o imprimir.
 
 Mirando un partido solo, además: cómo se fue dando el marcador, el 1° tiempo contra el 2° y cómo
 estuvo ese partido al lado de la temporada.
@@ -50,12 +51,14 @@ computadora, la tablet y el celular.
 
 ## Tecnologías utilizadas
 
-- **Python 3.13**
-- **Streamlit** – el tablero web
-- **Plotly** – los gráficos interactivos
-- **Pandas** – el manejo de los datos
+- **HTML, CSS y JavaScript** – una página estática, sin servidor propio (`web/sitio`)
+- **Plotly.js** – los gráficos interactivos
+- **jsPDF** – el informe en PDF
 - **Supabase** – la base de datos compartida con Uni-Dat
-- **ReportLab** – el informe en PDF
+- **Cloudflare Pages** – donde se publica la página
+
+Hasta octubre de 2026 el tablero estaba hecho en Python con Streamlit. Ese código se guarda en
+`streamlit/`, y la dirección vieja (tablero-cusf.streamlit.app) ahora lleva a la nueva.
 
 
 ---
