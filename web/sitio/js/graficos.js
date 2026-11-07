@@ -4,9 +4,9 @@
 //
 // Los textos que llegan acá (rival, jugador, motivo) ya pasaron por
 // texto(): sin < > (plotly interpreta algunas etiquetas HTML).
-import { pct } from "./formato.js";
+import { mmss, pct } from "./formato.js";
 import { str } from "./python.js";
-import { ACENTO, APAGADO, BORDE, RIVAL, SUP2, TEMA, TEXTO, UNI } from "./tema.js";
+import { ACENTO, APAGADO, BORDE, NEUTRO, RIVAL, SUP2, TEMA, TEXTO, UNI } from "./tema.js";
 
 const BEBAS = "Bebas Neue, Arial Narrow, sans-serif";
 // la config de grafico() de estilo.py (sin barra de botones, sin zoom con la rueda)
@@ -416,4 +416,74 @@ export function marcadorEnElPartido(evol, alto = 320) {
       xanchor: "center", xref: "x", y: 1, yanchor: "bottom", yref: "y domain" }];
   }
   return grafico({ data, layout }, alto);
+}
+
+// ── Tiempo de juego (nov 2026) ───────────────────────────────────────────────
+// Los colores: UNI y Rival los de siempre, la pelota muerta gris (NEUTRO) y
+// el tiempo en juego en general, azul (ACENTO).
+const TJ_TRAMOS = [["UNI", "UNI con la pelota", UNI, 0.62], ["RIVAL", "Rival con la pelota", RIVAL, 0.62], ["OUT", "Pelota muerta", NEUTRO, 0.16]];
+const TJ_EJE_TIEMPOS = { categoryorder: "array", categoryarray: ["2°T", "1°T"], showgrid: false,
+  tickfont: { color: TEXTO, size: 15, family: BEBAS } };
+// traceorder normal: en las barras apiladas Plotly da vuelta la leyenda (quedaría Pelota muerta primero)
+const tjLeyenda = { orientation: "h", traceorder: "normal", y: 1.02, yanchor: "bottom", x: 0 };
+
+// La cinta del partido: cada tramo en orden y del largo que duró, una fila
+// por tiempo (sin contar las pausas). La pelota muerta es una franja finita.
+export function cintaJuego(segmentos, alto = 210) {
+  const data = TJ_TRAMOS.map(([e, nombre, color, ancho]) => {
+    const ss = segmentos.filter((s) => s.e === e);
+    return { base: ss.map((s) => s.desde / 60000), customdata: ss.map((s) => [mmss(s.d), mmss(s.desde)]),
+      hovertemplate: `<b>${nombre}</b><br>Duró %{customdata[0]}<br>Desde el %{customdata[1]}<extra></extra>`,
+      marker: { color }, name: nombre, orientation: "h", type: "bar", width: ancho,
+      x: ss.map((s) => s.d / 60000), y: ss.map((s) => (s.p === "PT" ? "1°T" : "2°T")) };
+  });
+  const layout = { barmode: "overlay", bargap: 0.2, legend: tjLeyenda, margin: { t: 34 },
+    xaxis: { dtick: 10, rangemode: "tozero", ticksuffix: "'", title: { text: "Minutos (sin contar pausas)" } },
+    yaxis: TJ_EJE_TIEMPOS };
+  return grafico({ data, layout }, alto);
+}
+
+// ¿Cuánto duró cada tramo?: un punto por tramo (en juego arriba, pelota
+// muerta abajo); la raya blanca es el promedio.
+export function tramosJuego(tBip, tOut, alto = 250) {
+  const filas = [["En juego", tBip, ACENTO, 1], ["Pelota muerta", tOut, NEUTRO, 0]];
+  const data = [];
+  for (const [nombre, st, color, y] of filas) {
+    // un corrimiento vertical fijo (no al azar): el mismo partido se ve siempre igual
+    data.push({ customdata: st.lista.map(mmss), hovertemplate: `<b>${nombre}</b><br>Duró %{customdata}<extra></extra>`,
+      marker: { color, line: { color: "#0a0c0f", width: 1 }, opacity: 0.9, size: 8 }, mode: "markers", name: nombre,
+      type: "scatter", x: st.lista.map((d) => d / 1000), y: st.lista.map((_, k) => y + ((((k + 1) * 0.6180339) % 1) - 0.5) * 0.5) });
+    if (st.n) {
+      data.push({ hovertemplate: `<b>Promedio ${nombre.toLowerCase()}</b><br>${mmss(st.prom)}<extra></extra>`,
+        marker: { line: { color: TEXTO, width: 2.5 }, size: 42, symbol: "line-ns" }, mode: "markers", showlegend: false,
+        type: "scatter", x: [st.prom / 1000], y: [y] });
+    }
+  }
+  const tope = Math.ceil(Math.max(tBip.max, tOut.max, 30000) / 30000) * 30;
+  const marcas = Array.from({ length: tope / 30 + 1 }, (_, i) => i * 30);
+  const layout = { showlegend: false,
+    xaxis: { range: [-3, tope + 3], ticktext: marcas.map((s) => mmss(s * 1000)), tickvals: marcas, title: { text: "Duración del tramo" } },
+    yaxis: { range: [-0.6, 1.6], showgrid: false, ticktext: ["En juego", "Pelota muerta"], tickvals: [1, 0], zeroline: false } };
+  return grafico({ data, layout }, alto);
+}
+
+// 1° vs 2° tiempo: una barra por tiempo, partida en UNI / Rival / pelota muerta.
+export function tiemposJuego(pt, st, alto = 190) {
+  const data = [["uni", "UNI con la pelota", UNI], ["riv", "Rival con la pelota", RIVAL], ["out", "Pelota muerta", NEUTRO]].map(([k, nombre, color]) => ({
+    customdata: [mmss(pt[k]), mmss(st[k])], hovertemplate: `<b>${nombre}</b><br>%{y}: %{customdata}<extra></extra>`,
+    marker: { color }, name: nombre, orientation: "h", type: "bar", x: [pt[k] / 60000, st[k] / 60000], y: ["1°T", "2°T"] }));
+  const layout = { barmode: "stack", legend: tjLeyenda, margin: { t: 34 },
+    xaxis: { ticksuffix: "'", title: { text: "Minutos" } }, yaxis: TJ_EJE_TIEMPOS };
+  return grafico({ data, layout }, alto);
+}
+
+// La temporada: una barra por partido (sin entretiempo) partida en UNI / Rival
+// con la pelota y pelota muerta.
+export function temporadaJuego(etiquetas, tjs, alto = null) {
+  const data = [["uni", "UNI con la pelota", UNI], ["riv", "Rival con la pelota", RIVAL], ["out", "Pelota muerta", NEUTRO]].map(([k, nombre, color]) => ({
+    customdata: tjs.map((t) => mmss(t[k])), hovertemplate: `<b>%{y}</b><br>${nombre}: %{customdata}<extra></extra>`,
+    marker: { color }, name: nombre, orientation: "h", type: "bar", x: tjs.map((t) => t[k] / 60000), y: etiquetas }));
+  const layout = { barmode: "stack", legend: tjLeyenda, margin: { t: 34 },
+    xaxis: { ticksuffix: "'", title: { text: "Minutos (sin entretiempo)" } }, yaxis: { autorange: "reversed", showgrid: false } };
+  return grafico({ data, layout }, alto || 90 + 40 * etiquetas.length);
 }

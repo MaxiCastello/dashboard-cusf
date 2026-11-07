@@ -7,8 +7,9 @@
 // Criterio de los números: primero "X de Y" y después el porcentaje, sin
 // jerga y sin decir si estuvo bien o mal.
 import { etiqueta, pjTexto, resultado, sumar, tacklesTemporada } from "./calculos.js";
-import { coma, conSigno, esc, fijo, pct, unDecimal, xdey } from "./formato.js";
-import { acumulado, apiladas, barras, cajas, chances22, dona, lineas, mapaCalor, marcadorEnElPartido, mariposa, pesas, piruletas, radar }
+import { coma, conSigno, esc, fijo, mmss, pct, unDecimal, xdey } from "./formato.js";
+import { acumulado, apiladas, barras, cajas, chances22, cintaJuego, dona, lineas, mapaCalor, marcadorEnElPartido, mariposa, pesas, piruletas, radar,
+  temporadaJuego, tiemposJuego, tramosJuego }
   from "./graficos.js";
 import { aclarar, anillos, html, kpis, tabla } from "./piezas.js";
 import { MIN_AMARILLA, MIN_ROJA, OBJETIVOS, evaluar, minutosConUnoMenos, penales as penalesDe, temporada } from "./objetivos.js";
@@ -704,4 +705,105 @@ export function contraTemporada(lz, p, t) {
     ["Pateo a los palos", xdey(pa, pb), xdey(ta, tb)],
     ["Penales cometidos por UNI", pen(p), prom(pen(tot))]]));
   nota(c2, "En puntos y penales, la temporada es el promedio por partido; en el resto, la suma.");
+}
+
+// ── Tiempo de juego (nov 2026) ───────────────────────────────────────────────
+// Medido en Uni-Dat (sección TIEMPO DE JUEGO: cada tramo) o cargado a mano en
+// CARGAR PARTIDO (sólo los totales de la planilla). La pestaña sólo aparece si
+// hay tiempos cargados (pagina.js). Sin juzgar: muestra cuánto se jugó,
+// cuánto estuvo parada la pelota y quién la tuvo. La posesión es sobre
+// UNI + Rival (en lo de Uni-Dat es igual al tiempo en juego; a mano, la
+// planilla puede no cuadrar justo).
+
+// [valor, rótulo, null, renglón chico] para kpis, o null si no hay promedio
+// ni máximo. La cantidad sólo cuando se contó tramo por tramo (lista): la de
+// lo cargado a mano es estimada y no se muestra.
+function kpiTramos(st, rotulo, cuales) {
+  if (!st || (st.prom === null && st.max === null)) return null;
+  if (st.prom === null) return [mmss(st.max), rotulo.replace("Promedio", "Máximo").replace("prom.", "máx."), null, null];
+  const abajo = [st.max === null ? null : `Máximo ${mmss(st.max)}`, st.lista.length ? `${st.n} ${cuales}` : null].filter(Boolean);
+  return [mmss(st.prom), rotulo, null, abajo.length ? abajo.join(" · ") : null];
+}
+
+// "18:16 de 31:00 · 59%"
+const tde = (a, b) => `${mmss(a)} de ${mmss(b)} · ${pct(a, b)}%`;
+
+// Un partido.
+export function tiempoDeJuego(lz, p) {
+  const tj = p.tiempo_juego;
+  if (!tj) {
+    nota(lz, "Este partido no tiene el tiempo de juego cargado (se carga en Uni-Dat, sección TIEMPO DE JUEGO, o en CARGAR PARTIDO).");
+    return;
+  }
+  const pos = tj.uni + tj.riv;
+  lz.html(anillos([
+    ["En juego (BIP)", tj.bip, tj.bip + tj.out, ACENTO, "Del partido"],
+    ["Posesión UNI", tj.uni, pos, UNI, "Del tiempo en juego"],
+    ["Posesión Rival", tj.riv, pos, RIVAL, "Del tiempo en juego"],
+  ], null, mmss));
+  const promedios = [kpiTramos(tj.tBip, "BIP Promedio", "tramos"), kpiTramos(tj.tOut, "Pelota muerta Promedio", "tramos"),
+    kpiTramos(tj.posUni, "Posesión prom. UNI", "posesiones"), kpiTramos(tj.posRiv, "Posesión prom. Rival", "posesiones")].filter(Boolean);
+  if (promedios.length) lz.html(kpis(promedios));
+  // lo cargado a mano no tiene los tramos: sin cinta, sin duración de cada uno y sin 1° / 2° tiempo
+  if (!tj.segmentos) return;
+  lz.titulo("La cinta del partido");
+  nota(lz, "Cada tramo en el orden en que pasó y del largo que duró. Pasá el mouse o tocá un tramo para ver el detalle.");
+  lz.grafico(cintaJuego(tj.segmentos));
+  const cols = lz.columnas(2, "large");
+  cols[0].titulo("¿Cuánto duró cada tramo?");
+  nota(cols[0], "Cada punto es un tramo. Más a la derecha, más duró. La raya blanca es el promedio.");
+  cols[0].grafico(tramosJuego(tj.tBip, tj.tOut));
+  cols[1].titulo("1° vs 2° tiempo");
+  cols[1].grafico(tiemposJuego(tj.PT, tj.ST));
+  cols[1].html(tabla(["", "En juego", "Pelota muerta", "Posesión UNI", "Posesión Rival"],
+    [["1° tiempo", tj.PT], ["2° tiempo", tj.ST]].map(([n, x]) =>
+      [n, mmss(x.bip), mmss(x.out), `${mmss(x.uni)} · ${pct(x.uni, x.bip)}%`, `${mmss(x.riv)} · ${pct(x.riv, x.bip)}%`])));
+}
+
+// Promedio por tramo de la temporada: TODOS los tramos juntos (tiempo total ÷
+// cantidad de tramos), no el promedio de los promedios (un partido de 20
+// tramos pesaría igual que uno de 60). De lo cargado a mano la cantidad se
+// estima (total ÷ su promedio). Y el tramo más largo, con su partido.
+function kpiTemporada(ps, k, total, rotulo) {
+  const con = ps.filter((p) => p.tiempo_juego[k].n);
+  const conMax = ps.filter((p) => p.tiempo_juego[k].max !== null);
+  if (!con.length && !conMax.length) return null;
+  const prom = con.length ? con.reduce((a, p) => a + p.tiempo_juego[total], 0) / con.reduce((a, p) => a + p.tiempo_juego[k].n, 0) : null;
+  const mayor = conMax.reduce((m, p) => (m && m.tiempo_juego[k].max >= p.tiempo_juego[k].max ? m : p), null);
+  const abajo = mayor ? `Máximo ${mmss(mayor.tiempo_juego[k].max)} · ${etiqueta(mayor)}` : null;
+  return [prom === null ? "—" : mmss(prom), rotulo, null, abajo];
+}
+
+// La temporada (o un torneo): sólo los partidos que tienen el tiempo cargado.
+export function tiempoDeJuegoTemporada(lz, t) {
+  const ps = t.partidos.filter((p) => p.tiempo_juego);
+  if (!ps.length) {
+    nota(lz, "Ningún partido de esta temporada tiene el tiempo de juego cargado.");
+    return;
+  }
+  const tjs = ps.map((p) => p.tiempo_juego), n = ps.length;
+  const suma = (f) => tjs.reduce((a, x) => a + f(x), 0);
+  const bip = suma((x) => x.bip), out = suma((x) => x.out), uni = suma((x) => x.uni), riv = suma((x) => x.riv);
+  // promedio por partido (la suma ÷ los partidos): el % es el mismo que el de la temporada entera
+  lz.html(anillos([
+    ["En juego (BIP)", bip / n, (bip + out) / n, ACENTO, "Por partido"],
+    ["Posesión UNI", uni / n, (uni + riv) / n, UNI, "Por partido"],
+    ["Posesión Rival", riv / n, (uni + riv) / n, RIVAL, "Por partido"],
+  ], null, mmss));
+  const tramos = [kpiTemporada(ps, "tBip", "bip", "BIP Promedio por tramo"),
+    kpiTemporada(ps, "tOut", "out", "Pelota muerta Promedio por tramo")].filter(Boolean);
+  if (tramos.length) lz.html(kpis(tramos));
+  nota(lz, `Promedio de ${n} ${n === 1 ? "partido" : "partidos"}. El promedio por tramo cuenta juntos todos los tramos de la temporada. ` +
+    `${n} de ${t.partidos.length} partidos tienen el tiempo de juego cargado.`);
+  if (n >= 2) {
+    lz.titulo("En juego y posesión, partido a partido");
+    lz.grafico(lineas(ps.map((p) => etiqueta(p, true)), [
+      ["En juego", tjs.map((x) => pct(x.bip, x.bip + x.out)), ACENTO, tjs.map((x) => tde(x.bip, x.bip + x.out))],
+      ["Posesión UNI", tjs.map((x) => pct(x.uni, x.uni + x.riv)), UNI, tjs.map((x) => tde(x.uni, x.uni + x.riv))],
+    ], { alto: 300, porCiento: true, referencias: [[pct(bip, bip + out), "Temporada", ACENTO], [pct(uni, uni + riv), "Temporada", UNI]] }));
+    nota(lz, "En juego: qué parte del partido estuvo la pelota en juego. Posesión UNI: qué parte del tiempo en juego la tuvo UNI. " +
+      "Las líneas punteadas (Temporada) son la temporada entera, cada una de su color. Pasá el dedo o el mouse por un punto para ver los minutos.");
+  }
+  lz.titulo("Cada partido: en juego y pelota muerta");
+  lz.grafico(temporadaJuego(ps.map((p) => etiqueta(p, true)), tjs));
 }

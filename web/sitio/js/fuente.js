@@ -101,9 +101,18 @@ async function pedir(ruta, { metodo = "GET", token = null, json, cabeceras = {} 
 // main:stats->main: los escudos (imágenes en base64) no hacen falta. Los
 // borrados ya los esconde la base a quien lee sin usuario; el filtro es por
 // las dudas.
-export function filasUnidat() {
-  return pedir("/rest/v1/partidos?select=id,rival,categoria,fecha,score_uni," +
-    "score_rival,main:stats->main,tackles&borrado_en=is.null&order=fecha.asc");
+// tiempos (el tiempo de juego, nov 2026) es una columna nueva: si todavía no
+// se corrió su SQL, la base contesta 400 con el código 42703 ("no existe esa
+// columna") y se lee como antes, sin tiempos.
+const SIN_TIEMPOS = "/rest/v1/partidos?select=id,rival,categoria,fecha,score_uni," +
+  "score_rival,main:stats->main,tackles&borrado_en=is.null&order=fecha.asc";
+export async function filasUnidat() {
+  try {
+    return await pedir(SIN_TIEMPOS.replace(",tackles&", ",tackles,tiempos&"));
+  } catch (e) {
+    if (e instanceof ErrorBase && e.codigo === 400 && e.detalle === "42703") return pedir(SIN_TIEMPOS);
+    throw e;
+  }
 }
 
 // [filas, hayTabla]: si todavía no se corrió el SQL de la tabla, no es un error.

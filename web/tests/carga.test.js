@@ -119,12 +119,28 @@ test("lectura: los mismos pedidos que el Python, con la clave pública; sin la t
   supabase([["/rest/v1/partidos?", 200, []], ["/rest/v1/partidos_manuales?", 200, []]]);
   await filasUnidat();
   assert.deepEqual(await filasManuales(), [[], true]);
-  assert.deepEqual(pedidos.map((p) => p.url.slice(URL_BASE.length)), leer("base", "pedidos.json"));
+  // única diferencia buscada con el Python (nov 2026): también se pide la
+  // columna tiempos (el tiempo de juego de Uni-Dat)
+  const esperado = leer("base", "pedidos.json").map((u) => u.replace(",tackles&", ",tackles,tiempos&"));
+  assert.notDeepEqual(esperado, leer("base", "pedidos.json"));
+  assert.deepEqual(pedidos.map((p) => p.url.slice(URL_BASE.length)), esperado);
   assert.ok(pedidos.every((p) => p.metodo === "GET" && p.cab.Authorization === "Bearer " + p.cab.apikey));
   supabase([["/rest/v1/partidos_manuales?", 404, { code: "PGRST205" }]]);
   assert.deepEqual(await filasManuales(), [[], false]);
   supabase([["/rest/v1/partidos_manuales?", 404, { code: "PGRST116" }]]);
   await assert.rejects(filasManuales(), { message: "La base rechazó el pedido (404)." });
+});
+
+test("lectura: si la base todavía no tiene la columna tiempos (falta el SQL), se lee como antes", async () => {
+  supabase([["tiempos", 400, { code: "42703", message: "column partidos.tiempos does not exist" }], ["/rest/v1/partidos?", 200, [{ id: "a" }]]]);
+  assert.deepEqual(await filasUnidat(), [{ id: "a" }]);
+  assert.deepEqual(pedidos.map((p) => p.url.slice(URL_BASE.length)), [
+    "/rest/v1/partidos?select=id,rival,categoria,fecha,score_uni,score_rival,main:stats->main,tackles,tiempos&borrado_en=is.null&order=fecha.asc",
+    "/rest/v1/partidos?select=id,rival,categoria,fecha,score_uni,score_rival,main:stats->main,tackles&borrado_en=is.null&order=fecha.asc",
+  ]);
+  // cualquier otro 400 no se tapa
+  supabase([["tiempos", 400, { code: "PGRST100" }]]);
+  await assert.rejects(filasUnidat(), { message: "La base rechazó el pedido (400)." });
 });
 
 test("login: el mail va en minúsculas y sin espacios; un admin entra", async () => {

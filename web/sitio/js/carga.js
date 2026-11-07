@@ -12,7 +12,8 @@
 // en una casilla de número algo que no sea un entero de 0 a 300, ni más
 // letras que las permitidas, ni dejar la fecha vacía. Acá son casillas de
 // HTML: eso se valida antes que el resto.
-import { ANIO_PLANILLA, etiqueta, leerCsvTackles, SITUACIONES } from "./calculos.js";
+import { ANIO_PLANILLA, etiqueta, leerCsvTackles, SITUACIONES, TJ_MANUAL_MAX, tiempoManualValido } from "./calculos.js";
+import { mmss } from "./formato.js";
 import { conDefecto, entero, esVerdad, letras, recortar, soloDigitos, str } from "./python.js";
 
 export const MAX_TXT = 60, MAX_N = 300;
@@ -132,7 +133,67 @@ export function registrosDelCsv(bytes) {
     .map((r) => ({ tiempo: corte(r.tiempo, 20), jugador: corte(r.jugador, 3), nombre: corte(r.nombre, MAX_TXT), tipo: corte(r.tipo, 10) }));
 }
 
-export const AVISO_2025 = `Los partidos de ${ANIO_PLANILLA} no se ven en el tablero: esa temporada sale de la planilla.`;
+// ── Tiempo de juego a mano (nov 2026) ────────────────────────────────────────
+// Los totales de la planilla de tiempo de juego (BIP, OUT, posesión de cada
+// uno, promedios y máximos), para los partidos que no se midieron con
+// Uni-Dat. Va en datos.tiempo_juego, en segundos (calculos.js lo lee). Las
+// casillas son de texto: "30:10" (min:seg) o "1:05:19" / "00:55:19" (h:min:seg).
+// [casilla, clave en la base, rótulo]
+export const TJ_CAMPOS = [
+  ["tjbip", "bip", "En juego (BIP)"], ["tjout", "out", "Pelota muerta (OUT)"],
+  ["tjuni", "uni", "UNI con la pelota"], ["tjriv", "riv", "Rival con la pelota"],
+  ["tjbp", "bip_prom", "BIP Promedio"], ["tjbm", "bip_max", "BIP Máximo"],
+  ["tjop", "out_prom", "Pelota muerta Promedio"], ["tjom", "out_max", "Pelota muerta Máximo"],
+];
+
+// "30:10" → 1810; "1:05:19" o "01:05:19" → 3919; vacío → null; si no se
+// entiende → NaN. Los segundos (y los minutos con horas) van de 00 a 59.
+export function segundos(t) {
+  const s = String(t ?? "").trim();
+  if (s === "") return null;
+  const m = /^(?:(\d{1,2}):)?(\d{1,3}):(\d{2})$/.exec(s);
+  if (!m) return Number.NaN;
+  const conHoras = m[1] !== undefined, h = conHoras ? Number(m[1]) : 0, mi = Number(m[2]), se = Number(m[3]);
+  if (se > 59 || (conHoras && mi > 59)) return Number.NaN;
+  return h * 3600 + mi * 60 + se;
+}
+
+// Lo que muestran las casillas al abrir el formulario (lo guardado, o vacías).
+export function valoresTiempo(guardado) {
+  const t = tiempoManualValido(guardado) ?? {};
+  return Object.fromEntries(TJ_CAMPOS.map(([c, k]) => [c, k in t ? mmss(t[k] * 1000) : ""]));
+}
+
+// Lo escrito → {tj, errores, ojo}. tj = null si no se escribió nada (el
+// partido queda sin tiempo de juego). ojo: un aviso que no impide guardar.
+export function armarTiempo(v) {
+  const errores = [], s = {};
+  for (const [c, k, rot] of TJ_CAMPOS) {
+    const x = segundos(v[c]);
+    if (Number.isNaN(x)) errores.push(`${rot}: escribilo como 30:10 (minutos:segundos) o 1:05:19 (horas:minutos:segundos).`);
+    else if (x !== null && x > TJ_MANUAL_MAX) errores.push(`${rot}: más de 4 horas no puede ser.`);
+    else if (x !== null) s[k] = x;
+  }
+  if (errores.length) return { tj: null, errores, ojo: null };
+  if (!Object.keys(s).length) return { tj: null, errores, ojo: null };
+  const falta = TJ_CAMPOS.slice(0, 4).filter(([, k]) => !(k in s)).map(([, , rot]) => rot);
+  if (falta.length) errores.push(`Tiempo de juego: falta ${falta.join(", ")} (son los cuatro de arriba; los promedios y máximos son opcionales).`);
+  for (const [tot, prom, max, que] of [["bip", "bip_prom", "bip_max", "en juego"], ["out", "out_prom", "out_max", "de pelota muerta"]]) {
+    if (prom in s && max in s && s[prom] > s[max]) errores.push(`El promedio ${que} es más largo que el máximo.`);
+    if (tot in s && max in s && s[max] > s[tot]) errores.push(`El tramo más largo ${que} dura más que todo el tiempo ${que}.`);
+    if (tot in s && prom in s && s[prom] > s[tot]) errores.push(`El promedio ${que} es más largo que todo el tiempo ${que}.`);
+    if (tot in s && prom in s && s[prom] === 0 && s[tot] > 0) errores.push(`El promedio ${que} no puede ser 0:00 (si no se midió, dejalo vacío).`);
+  }
+  if (errores.length) return { tj: null, errores, ojo: null };
+  const tj = Object.fromEntries([...TJ_CAMPOS.map(([, k]) => k)].filter((k) => k in s).map((k) => [k, s[k]]));
+  const suma = tj.uni + tj.riv;
+  const ojo = suma === tj.bip ? null
+    : `Ojo: UNI + Rival da ${mmss(suma * 1000)} y En juego dice ${mmss(tj.bip * 1000)} (no cuadran por ${
+      mmss(Math.abs(suma - tj.bip) * 1000)}). La posesión se calcula sobre UNI + Rival. Se guardó igual; si fue un error, corregilo.`;
+  return { tj, errores, ojo };
+}
+
+export const AVISO_2025 =`Los partidos de ${ANIO_PLANILLA} no se ven en el tablero: esa temporada sale de la planilla.`;
 
 // Guardar un partido (nuevo si fila = null, o la corrección de esa fila).
 // v: lo escrito en cada casilla; csv: los bytes del CSV elegido (o null).
@@ -184,6 +245,8 @@ export function armarPartido(v, fila, csv) {
     }
   }
   if (E.concretadas > E.chances) errores.push("Hay más chances en 22 concretadas que chances.");
+  const TJ = armarTiempo(v);   // (nov 2026) sin casillas de tiempo escritas: tj = null y nada cambia
+  errores.push(...TJ.errores);
   let registros = esVerdad(d.tackles_registros) ? d.tackles_registros : [];
   if (csv !== null) {
     registros = registrosDelCsv(csv);
@@ -198,6 +261,7 @@ export function armarPartido(v, fila, csv) {
   const calcU = P.tries_u * 5 + P.triesp_u * 7 + P.conv_u * 2 + (P.palos_u + P.drop_u) * 3;
   const calcR = P.tries_r * 5 + P.triesp_r * 7 + P.conv_r * 2 + (P.palos_r + P.drop_r) * 3;
   const datos = { puntos: P, ...F, penales: PEN, tarjetas: T, efectividad_22: E, tackles_registros: registros };
+  if (TJ.tj) datos.tiempo_juego = TJ.tj;   // sólo si se cargó: si no, la fila es la de siempre
   const su = n.su, sr = n.sr;
   const nueva = { rival, categoria: cat === "" ? null : cat, fecha: v.f, score_uni: su, score_rival: sr, datos };
   const txt = `Guardado: UNI ${su}–${sr} ${rival}.`;
@@ -205,6 +269,7 @@ export function armarPartido(v, fila, csv) {
     ? ["ojo", `${txt} Ojo: con tries y patadas da ${calcU}–${calcR}, distinto del tanteo cargado (${su}–${sr}). ` +
       "Se guardó igual; si fue un error, corregilo."]
     : ["ok", txt];
+  if (TJ.ojo) aviso = ["ojo", `${aviso[1]} ${TJ.ojo}`];
   // (no está en cargar.py) 2025 sale de la planilla: un partido de ese año no se vería
   if (v.f.startsWith(`${ANIO_PLANILLA}-`)) aviso = ["ojo", `${aviso[1]} ${AVISO_2025}`];
   return { fila: nueva, id: fila?.id ?? null, aviso };
@@ -231,17 +296,37 @@ export function valoresComplemento(p) {
 // Lo que cargó Uni-Dat (si se corrigieron, las de antes de corregir).
 export const tarjetasUnidat = (p) => (esVerdad(p.tarjetas_unidat) ? p.tarjetas_unidat : p.tarjetas);
 
+// Las chances en 22 que cargó Uni-Dat ({chances, concretadas}), o null si el
+// partido no tiene (los de antes de la sección CHANCES EN 22).
+export const chancesUnidat = (p) => (esVerdad(p.efectividad_22_unidat) ? p.efectividad_22_unidat : null);
+
+// El tiempo de juego que midió Uni-Dat (sección TIEMPO DE JUEGO), o null si
+// el partido no lo tiene medido (puede tenerlo cargado a mano).
+export const tiempoUnidat = (p) => (p.tiempo_juego && !p.tiempo_juego.manual ? p.tiempo_juego : null);
+
 export function armarComplemento(v, p) {
-  const [n, errores] = numeros(v, ["cch", "cco", ...TARJETAS.map(([k]) => `ct${k}`)]);
+  // Prioridad Uni-Dat: si el partido tiene chances cargadas en Uni-Dat, valen
+  // ésas; las casillas se ven bloqueadas y acá no se leen ni se guardan. Los
+  // partidos sin chances en Uni-Dat las cargan a mano, como siempre.
+  const ud = chancesUnidat(p);
+  const [n, errores] = numeros(v, [...(ud ? [] : ["cch", "cco"]), ...TARJETAS.map(([k]) => `ct${k}`)]);
   if (errores.length) return { errores };
-  if (n.cco > n.cch) return { errores: ["Hay más concretadas que chances."] };
+  if (!ud && n.cco > n.cch) return { errores: ["Hay más concretadas que chances."] };
+  // Tiempo de juego (nov 2026), la misma prioridad: si Uni-Dat lo midió, las
+  // casillas no están y lo cargado a mano antes (si hay) se conserva tal cual
+  // (guardar el complemento reemplaza todo su `datos`: si no, se borraría).
+  const tud = tiempoUnidat(p);
+  const TJ = tud ? { tj: p.tiempo_juego_manual ?? null, errores: [], ojo: null } : armarTiempo(v);
+  if (TJ.errores.length) return { errores: TJ.errores };
   const T = Object.fromEntries(TARJETAS.map(([k]) => [k, n[`ct${k}`]]));
   const original = tarjetasUnidat(p);
-  const datos = { efectividad_22: { chances: n.cch, concretadas: n.cco } };
+  const datos = ud ? {} : { efectividad_22: { chances: n.cch, concretadas: n.cco } };
   // sólo se guarda la corrección: si no, vale lo que diga Uni-Dat
   if (TARJETAS.some(([k]) => T[k] !== original[k])) datos.tarjetas = T;
+  if (TJ.tj) datos.tiempo_juego = TJ.tj;
+  const texto = "Guardado." + ("tarjetas" in datos ? " Las tarjetas de este partido ahora son las corregidas acá." : "");
   return {
     fila: { partido_id: p.id, datos }, id: p.complemento_id ?? null,
-    aviso: ["ok", "Guardado." + ("tarjetas" in datos ? " Las tarjetas de este partido ahora son las corregidas acá." : "")],
+    aviso: TJ.ojo ? ["ojo", `${texto} ${TJ.ojo}`] : ["ok", texto],
   };
 }

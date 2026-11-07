@@ -15,11 +15,12 @@ import { desplegable, radios } from "./controles.js";
 import { borrarManual, ErrorBase, filasManuales, filasUnidat, guardarManual, ingresar, renovar, salir } from "./fuente.js";
 import { CHEVRON_DER, FLECHA_ABAJO } from "./iconos.js";
 import { barra, encabezado } from "./marco.js";
+import { mmss } from "./formato.js";
 import { html, poner } from "./piezas.js";
 
 const $ = (id) => document.getElementById(id);
 
-const ACCIONES = [["nuevo", "Partido nuevo"], ["corregir", "Corregir o borrar"], ["complemento", "Chances en 22 y tarjetas (Uni-Dat)"]];
+const ACCIONES = [["nuevo", "Partido nuevo"], ["corregir", "Corregir o borrar"], ["complemento", "Chances, tarjetas y tiempo de juego (Uni-Dat)"]];
 const SESION = "cusf-sesion", INTENTOS = "cusf-intentos";
 const MAX_INTENTOS = 5, VENTANA = 600;   // 5 intentos cada 10 minutos, como cargar.py
 
@@ -241,6 +242,34 @@ async function escribir(boton, err, hacer, aviso) {
 const num = (nombre, rotulo, v) => html`<label class="campo"><span class="rotulo">${rotulo}</span><input name="${nombre}"
 inputmode="numeric" autocomplete="off" placeholder="0" value="${v[nombre] === "0" ? "" : v[nombre]}"></label>`;
 
+// Una casilla que se ve pero no se toca ni se manda (sin name): las chances
+// de un partido que ya las tiene cargadas en Uni-Dat.
+const numFijo = (rotulo, valor) => html`<label class="campo"><span class="rotulo">${rotulo}</span><input
+inputmode="numeric" value="${valor}" disabled></label>`;
+
+// Tiempo de juego a mano (nov 2026): casillas de texto ("30:10" o "1:05:19";
+// el teclado de números del celular no tiene los dos puntos). Lo valida carga.js.
+const tiempo = (nombre, rotulo, v) => html`<label class="campo"><span class="rotulo">${rotulo}</span><input name="${nombre}"
+autocomplete="off" spellcheck="false" placeholder="0:00" value="${v[nombre]}"></label>`;
+const rotTJ = new Map(K.TJ_CAMPOS.map(([c, , r]) => [c, r]));
+const casillaTJ = (c, v) => tiempo(c, rotTJ.get(c), v);
+
+// El bloque de tiempo de juego del formulario. tud: el que midió Uni-Dat (si
+// lo midió, vale ése y no hay casillas); v: lo guardado a mano (valoresTiempo).
+function bloqueTiempo(v, tud = null) {
+  if (tud) {
+    return html`<h4>Tiempo de juego</h4>
+<div class="nota">Este partido tiene el tiempo de juego medido en Uni-Dat: ${mmss(tud.bip)} en juego y ${mmss(tud.out)} de pelota muerta.
+Vale ése; para cambiarlo, corregilo en Uni-Dat (PARTIDOS → TIEMPO DE JUEGO).</div>`;
+  }
+  return html`<h4>Tiempo de juego (opcional)</h4>
+<div class="nota">Los totales de la planilla de tiempo de juego. Cada tiempo como 30:10 (minutos:segundos) o 1:05:19
+(horas:minutos:segundos). La posesión (%) la calcula el tablero con UNI + Rival. Los promedios y máximos se pueden dejar vacíos.</div>
+<div class="grupo g2">${casillaTJ("tjbip", v)}${casillaTJ("tjout", v)}</div>
+<div class="grupo g2">${casillaTJ("tjuni", v)}${casillaTJ("tjriv", v)}</div>
+<div class="grupo g4">${casillaTJ("tjbp", v)}${casillaTJ("tjbm", v)}${casillaTJ("tjop", v)}${casillaTJ("tjom", v)}</div>`;
+}
+
 // (sin maxlength: el navegador cuenta un emoji como 2; el largo lo valida carga.js, como Python)
 const texto = (nombre, rotulo, v) => html`<label class="campo"><span class="rotulo">${rotulo}</span><input name="${nombre}"
 autocomplete="off" value="${v[nombre]}"></label>`;
@@ -271,6 +300,7 @@ ${K.FORMACIONES.map(([tit, clave]) => html`<p class="sub">${tit}</p><div class="
 <h4>Tarjetas y chances en 22</h4>
 <div class="grupo g6">${num("amu", "Amarillas UNI", v)}${num("rou", "Rojas UNI", v)}${num("amr", "Amarillas rival", v)}${
   num("ror", "Rojas rival", v)}${num("ch", "Chances en 22", v)}${num("co", "Concretadas", v)}</div>
+${bloqueTiempo(K.valoresTiempo(fila?.datos?.tiempo_juego))}
 <h4>Tackles (opcional)</h4>
 <label class="campo"><span class="rotulo">CSV del Tackle Tracker</span><input type="file" name="tk" accept=".csv"></label>
 ${tk ? html`<div class="nota">Ya tiene ${tk} tackles cargados. Subí otro CSV sólo para reemplazarlos.</div>` : ""}
@@ -343,8 +373,8 @@ class="rot">Borrar este partido</span></summary><div class="cuerpo">
 
 function complemento(cont) {
   const unidat = estado.partidos.filter((p) => p.fuente === "unidat");
-  const nota = html`<div class="nota">Para un partido ya publicado en Uni-Dat: sumarle las chances en 22 rival (Uni-Dat no las
-registra) y agregar o sacar tarjetas si en Uni-Dat quedaron mal.</div>`;
+  const nota = html`<div class="nota">Para un partido ya publicado en Uni-Dat: sumarle las chances en 22 rival y el tiempo de juego
+si no se cargaron en Uni-Dat (si se cargaron, valen los de Uni-Dat) y agregar o sacar tarjetas si en Uni-Dat quedaron mal.</div>`;
   if (!unidat.length) {
     poner(cont, html`${nota}<div class="nota">No hay partidos de Uni-Dat.</div>`);
     return;
@@ -357,15 +387,20 @@ registra) y agregar o sacar tarjetas si en Uni-Dat quedaron mal.</div>`;
 <div id="comp-form"></div>`);
   const elegir = () => {
     const p = porId.get(estado.complemento);
-    const v = K.valoresComplemento(p), original = K.tarjetasUnidat(p);
+    const v = { ...K.valoresComplemento(p), ...K.valoresTiempo(p.tiempo_juego_manual) };
+    const original = K.tarjetasUnidat(p), ud = K.chancesUnidat(p);
     const f = $("comp-form");
     poner(f, html`<form class="formulario" novalidate>
 <h4>Chances en 22 rival</h4>
-<div class="grupo g2">${num("cch", "Chances en 22", v)}${num("cco", "Concretadas", v)}</div>
+${ud ? html`<div class="nota">Este partido tiene las chances cargadas en Uni-Dat: ${ud.concretadas} concretadas de ${ud.chances}.
+Valen ésas; para cambiarlas, corregilas en Uni-Dat (PARTIDOS).</div>
+<div class="grupo g2">${numFijo("Chances en 22", ud.chances)}${numFijo("Concretadas", ud.concretadas)}</div>`
+    : html`<div class="grupo g2">${num("cch", "Chances en 22", v)}${num("cco", "Concretadas", v)}</div>`}
 <h4>Tarjetas</h4>
 <div class="nota">Lo que cargó Uni-Dat: ${K.TARJETAS.map(([k, r]) => `${r} ${original[k]}`).join(" · ")}. Cambiá los números para agregar
 o sacar; si quedan iguales, vale lo de Uni-Dat.</div>
 <div class="grupo g4">${K.TARJETAS.map(([k, r]) => num(`ct${k}`, r, v))}</div>
+${bloqueTiempo(v, K.tiempoUnidat(p))}
 <div class="botones"><button type="submit" class="boton primario">Guardar</button></div>
 </form>${cajaError(null)}`);
     const form = f.querySelector("form"), err = f.querySelector(".aviso.error"), boton = form.querySelector("[type=submit]");

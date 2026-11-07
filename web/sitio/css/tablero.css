@@ -213,6 +213,8 @@ table.objetivos td.sd { color:var(--apagado); font-size:.75rem; }
 .kpi .v { font-family:'Bebas Neue',sans-serif; font-size:2.3rem; line-height:1; letter-spacing:1px; }
 .kpi .l { font-family:'DM Mono',monospace; font-size:.68rem; letter-spacing:1.5px; color:var(--apagado);
   margin-top:6px; text-transform:uppercase; }
+/* renglón chico opcional debajo del rótulo (tiempo de juego: "Máximo 2:30 · 50 tramos") */
+.kpi .x { font-family:'DM Mono',monospace; font-size:.68rem; color:var(--apagado); margin-top:2px; }
 
 /* ── Botones (como st.button de Streamlit, medido: 40px de alto, borde suave;
    el principal, del color de acento) ─────────────────────────────────── */

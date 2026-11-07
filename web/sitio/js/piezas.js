@@ -28,18 +28,22 @@ export function poner(el, h) {
 }
 
 // items: [[valor, rótulo, color|null]]. `c || TEXTO` como el `c or TEXTO` de Python: "" también toma TEXTO.
+// items: [[valor, rótulo, color, abajo]]; `abajo` (opcional, nov 2026) es un
+// renglón chico debajo del rótulo (ej. "Máximo 2:30 · 50 tramos").
 export function kpis(items) {
-  return html`<div class="kpis">${items.map(([v, l, c]) =>
-    html`<div class="kpi"><div class="v" style="color:${c || TEXTO}">${v}</div><div class="l">${l}</div></div>`)}</div>`;
+  return html`<div class="kpis">${items.map(([v, l, c, x]) =>
+    html`<div class="kpi"><div class="v" style="color:${c || TEXTO}">${v}</div><div class="l">${l}</div>${
+      x ? html`<div class="x">${x}</div>` : ""}</div>`)}</div>`;
 }
 
 // items: [[rótulo, a, b, color, arriba|null]] -> un anillo por item con "a",
 // abajo "de b" y el % (en tres renglones: entra aunque sean miles). `arriba`
 // es el grupo (UNI / Rival).
-export function anillos(items, columnas = null) {
+// `fmt` (opcional, nov 2026): cómo se escriben a y b (ej. milisegundos → "17:36").
+export function anillos(items, columnas = null, fmt = (x) => x) {
   const partes = items.map(([rotulo, a, b, color, arriba]) => {
     const p = pct(a, b);
-    const centro = b ? html`${a}<span class="de">de ${b}</span><small>${p}%</small>` : html`—<small>sin datos</small>`;
+    const centro = b ? html`${fmt(a)}<span class="de">de ${fmt(b)}</span><small>${p}%</small>` : html`—<small>sin datos</small>`;
     // ojo: html`` + html`` da un texto común (que se escaparía): se juntan adentro de otro html``
     const anillo = html`<div class="r" style="background:conic-gradient(${color} ${p}%,${SUP2} 0)"><div class="c">${centro}</div></div>`;
     const rot = html`<div class="l">${arriba ? html`<i>${arriba}</i>` : ""}${rotulo}</div>`;

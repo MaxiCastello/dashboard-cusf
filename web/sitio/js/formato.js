@@ -63,3 +63,10 @@ const ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&
 export function esc(x) {
   return String(x).replace(/[&<>"']/g, (c) => ESCAPES[c]);
 }
+
+// Milisegundos → "1:02" (o "1:02:05" pasada la hora). Tiempo de juego (nov 2026).
+export function mmss(ms) {
+  // al segundo más cercano, igual que Uni-Dat (Math.round de JS: 12,5 s → 13)
+  const n = Number(ms), s = Number.isFinite(n) ? Math.floor((n + 500) / 1000) : 0, h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+  return `${h ? `${h}:${String(m).padStart(2, "0")}` : m}:${String(x).padStart(2, "0")}`;
+}

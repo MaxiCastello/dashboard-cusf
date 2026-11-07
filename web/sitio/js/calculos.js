@@ -175,6 +175,135 @@ export function knockonStats(eventos) {
   return { uni: lado("UNI", "RIVAL"), rival: lado("RIVAL", "UNI") };
 }
 
+// ── Tiempo de juego (Uni-Dat, sección TIEMPO DE JUEGO, nov 2026) ─────────────
+// La columna partidos.tiempos guarda la HORA de cada toque:
+// { v: 1, marcas: [{ t: ms, e: "UNI"|"RIVAL"|"OUT"|"PAUSA", p: "PT"|"ST" }] }.
+// limpiarTiempos es la misma regla que csv-unidat.js de Uni-Dat (si cambia
+// allá, cambiarla acá).
+const TJ_ESTADOS = ["UNI", "RIVAL", "OUT", "PAUSA"];
+export function limpiarTiempos(x) {
+  if (!esDict(x) || !Array.isArray(x.marcas)) return null;
+  const out = [];
+  for (const m of x.marcas) {
+    if (out.length >= 5000) break;
+    if (!esDict(m)) continue;
+    const t = Number(m.t), e = m.e, p = m.p;
+    if (!Number.isFinite(t) || t < 0 || !TJ_ESTADOS.includes(e) || (p !== "PT" && p !== "ST")) continue;
+    const prev = out.at(-1);
+    if (prev && t < prev.t) continue;
+    if (prev && prev.e === e && prev.p === p) continue;
+    if (!prev && e === "PAUSA") continue;
+    out.push({ t, e, p });   // (Uni-Dat ya guarda milisegundos enteros)
+  }
+  return out.length ? { v: 1, marcas: out } : null;
+}
+
+function estadisticaTiempos(ds) {
+  return { n: ds.length, prom: ds.length ? ds.reduce((a, b) => a + b, 0) / ds.length : 0,
+    max: ds.length ? Math.max(...ds) : 0, lista: ds };
+}
+// Las cuentas de un grupo de segmentos (todo el partido o un tiempo).
+function cuentasTiempos(segs) {
+  const r = { bip: 0, out: 0, uni: 0, riv: 0 }, bip = [], out = [];
+  let cur = null;
+  for (const s of segs) {
+    if (s.e === "OUT") r.out += s.d;
+    else {
+      r.bip += s.d;
+      if (s.e === "UNI") r.uni += s.d; else r.riv += s.d;
+    }
+    // tramo en juego = UNI/RIVAL seguidos aunque cambie la posesión; tramo muerto = OUT
+    const tipo = s.e === "OUT" ? "out" : "bip";
+    if (!cur || cur.tipo !== tipo || cur.p !== s.p || s.trasPausa) {
+      cur = { tipo, p: s.p, d: 0 };
+      (tipo === "bip" ? bip : out).push(cur);
+    }
+    cur.d += s.d;
+  }
+  r.tBip = estadisticaTiempos(bip.map((x) => x.d));
+  r.tOut = estadisticaTiempos(out.map((x) => x.d));
+  // cada tramo seguido de un mismo equipo con la pelota es una posesión
+  r.posUni = estadisticaTiempos(segs.filter((s) => s.e === "UNI").map((s) => s.d));
+  r.posRiv = estadisticaTiempos(segs.filter((s) => s.e === "RIVAL").map((s) => s.d));
+  return r;
+}
+// El tiempo de juego de un partido, o null si no tiene. El último tramo, si
+// quedó abierto (sin PAUSA al final), no se cuenta: no se sabe cuándo terminó.
+// segmentos: cada tramo en orden, con su duración (d) y desde qué momento del
+// tiempo empezó (desde), sin contar las pausas.
+export function tiempoJuego(x) {
+  const t = limpiarTiempos(x);
+  if (!t) return null;
+  const m = t.marcas, segs = [], cursor = { PT: 0, ST: 0 };
+  let trasPausa = false;
+  for (let i = 0; i < m.length; i++) {
+    if (m[i].e === "PAUSA") { trasPausa = true; continue; }
+    if (i + 1 >= m.length) break;
+    const d = m[i + 1].t - m[i].t;
+    // un tramo que duró 0 (el olvidado que Uni-Dat cerró sin contar) no es un
+    // tramo: no suma a la cantidad ni baja el promedio (la misma regla que Uni-Dat)
+    if (d <= 0) continue;
+    segs.push({ e: m[i].e, p: m[i].p, d, desde: cursor[m[i].p], trasPausa });
+    cursor[m[i].p] += d;
+    trasPausa = false;
+  }
+  if (!segs.length) return null;
+  return { ...cuentasTiempos(segs), PT: cuentasTiempos(segs.filter((s) => s.p === "PT")),
+    ST: cuentasTiempos(segs.filter((s) => s.p === "ST")), segmentos: segs };
+}
+
+// ── Tiempo de juego cargado a mano (CARGAR PARTIDO, nov 2026) ────────────────
+// Para los partidos que no se midieron con Uni-Dat: sólo los totales de la
+// planilla, en SEGUNDOS enteros, en datos.tiempo_juego de partidos_manuales:
+//   { bip, out, uni, riv }                    obligatorios
+//   { bip_prom, bip_max, out_prom, out_max }  opcionales
+// No hay tramos ni 1°/2° tiempo: la cinta y lo demás no se pueden dibujar.
+export const TJ_MANUAL_OBLIGATORIOS = ["bip", "out", "uni", "riv"];
+export const TJ_MANUAL_OPCIONALES = ["bip_prom", "bip_max", "out_prom", "out_max"];
+export const TJ_MANUAL_MAX = 4 * 3600;   // 4 horas: más que un partido entero con todo
+// Lo de la base, limpio ({...} con sólo las claves de arriba), o null si no
+// sirve (falta una obligatoria, o un valor no es un entero de 0 a 4 horas).
+// Las reglas entre valores (promedio <= máximo <= total) las cuida el
+// formulario (carga.js); acá sólo que no se caiga con un dato raro.
+export function tiempoManualValido(x) {
+  if (!esDict(x)) return null;
+  const ok = (v) => typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= TJ_MANUAL_MAX;
+  const r = {};
+  for (const k of TJ_MANUAL_OBLIGATORIOS) {
+    if (!ok(x[k])) return null;
+    r[k] = x[k];
+  }
+  for (const k of TJ_MANUAL_OPCIONALES) if (ok(x[k])) r[k] = x[k];
+  return r;
+}
+// Lo cargado a mano con la misma forma que tiempoJuego() (en milisegundos),
+// para que las vistas lo dibujen igual. La cantidad de tramos no está en la
+// planilla: se estima total ÷ promedio (sirve para el promedio de la
+// temporada, que junta todos los tramos). Sin promedio, no hay cantidad.
+export function tiempoJuegoManual(x) {
+  const m = tiempoManualValido(x);
+  if (!m) return null;
+  const tramos = (total, prom, max) => ({
+    n: prom ? Math.max(1, Math.floor(total / prom + 0.5)) : null,
+    prom: prom ? prom * 1000 : null, max: max === undefined ? null : max * 1000, lista: [],
+  });
+  return {
+    bip: m.bip * 1000, out: m.out * 1000, uni: m.uni * 1000, riv: m.riv * 1000,
+    tBip: tramos(m.bip, m.bip_prom, m.bip_max), tOut: tramos(m.out, m.out_prom, m.out_max),
+    posUni: null, posRiv: null, PT: null, ST: null, segmentos: null, manual: true,
+  };
+}
+
+// Chances en 22 cargadas en Uni-Dat (sección CHANCES EN 22, desde nov 2026):
+// un evento "CHANCE 22" de UNI por chance, data.resultado SI (terminó en try)
+// o NO. null si el partido no tiene ninguna (los partidos de antes): así esos
+// quedan igual que siempre y las chances salen, si hay, del complemento.
+export function chances22Stats(eventos) {
+  const ch = (e) => tipo(e) === "CHANCE 22" && equipo(e) === "UNI";
+  const chances = contar(eventos, ch);
+  return chances ? { chances, concretadas: contar(eventos, (e) => ch(e) && g(d(e), "resultado") === "SI") } : null;
+}
+
 // Lo mismo que el RESUMEN del CSV de Uni-Dat (TRIES y PATADAS).
 export function puntosStats(eventos) {
   const n = (t, eq, ok = null, campo = "resultado") =>
@@ -485,6 +614,16 @@ export function desdeUnidat(fila) {
     line_tabla: lineTabla(ev), tries_origen: triesOrigen(ev),
     marcador: marcadorEvolucion(ev),
   };
+  // Sólo los partidos con chances cargadas en Uni-Dat suman estas dos claves:
+  // los de antes quedan exactamente como eran.
+  const ch = chances22Stats(ev);
+  if (ch) {
+    p.efectividad_22 = ch;
+    p.efectividad_22_unidat = { ...ch };
+  }
+  // Tiempo de juego (columna propia): sólo los partidos que lo tienen suman la clave.
+  const tj = tiempoJuego(g(fila, "tiempos"));
+  if (tj) p.tiempo_juego = tj;
   const tk = o(g(fila, "tackles"), {});
   const ses = o(g(tk, "session", "tackles"), {});
   if (esDict(ses) && esVerdad(g(ses, "registros"))) {
@@ -534,6 +673,12 @@ export function desdeManual(fila) {
   }
   p.efectividad_22 = efectividad22(de("efectividad_22"));
   if (Array.isArray(de("tackles_registros"))) p.tackles = tacklesDesdeRegistros(de("tackles_registros"));
+  // tiempo de juego cargado a mano (nov 2026): sólo si tiene (los demás, iguales que siempre)
+  const tjm = tiempoManualValido(de("tiempo_juego"));
+  if (tjm) {
+    p.tiempo_juego_manual = tjm;
+    p.tiempo_juego = tiempoJuegoManual(tjm);
+  }
   return p;
 }
 
@@ -565,9 +710,20 @@ export function partidosBase(filasUnidat, filasManuales) {
       const p = porId.get(clavePy(m.partido_id));
       if (p) {
         const datos = o(g(m, "datos"), {});
-        p.efectividad_22 = efectividad22(g(datos, "efectividad_22", "datos"));
+        // Prioridad Uni-Dat: si el partido tiene chances cargadas en Uni-Dat,
+        // valen ésas y las del complemento (cargadas a mano antes) no se usan.
+        // Si no tiene, valen las del complemento, como siempre.
+        if (!p.efectividad_22_unidat) p.efectividad_22 = efectividad22(g(datos, "efectividad_22", "datos"));
         if (!Object.hasOwn(m, "id")) caer("complemento sin id");
         p.complemento_id = m.id;
+        // Tiempo de juego a mano (nov 2026): se guarda tal cual en el partido
+        // (el formulario lo muestra y lo conserva), pero si Uni-Dat lo midió,
+        // vale el de Uni-Dat (prioridad Uni-Dat, como las chances).
+        const tjm = tiempoManualValido(g(datos, "tiempo_juego", "datos"));
+        if (tjm) {
+          p.tiempo_juego_manual = tjm;
+          if (!p.tiempo_juego) p.tiempo_juego = tiempoJuegoManual(tjm);
+        }
         const tj = tarjetasCorregidas(g(datos, "tarjetas"));
         if (tj) {
           p.tarjetas_unidat = p.tarjetas;
