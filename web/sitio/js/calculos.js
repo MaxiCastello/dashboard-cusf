@@ -742,10 +742,15 @@ export function partidosBase(filasUnidat, filasManuales) {
 }
 
 // 'Primera oro f3' -> 'Primera'. Uni-Dat guarda la categoría como texto
-// libre; para filtrar alcanza con la primera palabra.
+// libre. Si el texto tiene, en cualquier lugar, la palabra de una categoría
+// conocida, es esa ("Semifinal trl oro primera" -> 'Primera'; nov 2026).
+// Si no, la primera palabra, como antes. (Igual en fuente.py.)
+const CATEGORIAS = [["Primera", /(^|[^\p{L}\p{N}])primera([^\p{L}\p{N}]|$)/iu]];
 export function categoriaBase(cat) {
   const c = recortar(o(cat, ""));
-  return c ? capitalizar(partir(c)[0]) : "Sin categoría";
+  if (!c) return "Sin categoría";
+  const conocida = CATEGORIAS.find(([, re]) => re.test(c));
+  return conocida ? conocida[0] : capitalizar(partir(c)[0]);
 }
 
 export const ANIO_PLANILLA = 2025;

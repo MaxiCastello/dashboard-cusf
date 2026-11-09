@@ -121,11 +121,23 @@ def partidos_base():
     return todos, hay_tabla
 
 
+# Las categorías conocidas: la palabra sola en cualquier lugar del texto
+# (letras y números de los dos lados no valen; "_" sí separa, como en JS).
+CATEGORIAS = [("Primera", re.compile(r"(?:^|[^\w]|_)primera(?:[^\w]|_|$)", re.I))]
+
+
 def categoria_base(cat):
     """'Primera oro f3' -> 'Primera'. Uni-Dat guarda la categoría como texto
-    libre; para filtrar alcanza con la primera palabra."""
+    libre. Si tiene, en cualquier lugar, la palabra de una categoría conocida,
+    es esa ("Semifinal trl oro primera" -> 'Primera'; nov 2026). Si no, la
+    primera palabra, como antes. (Igual en calculos.js.)"""
     cat = (cat or "").strip()
-    return cat.split()[0].capitalize() if cat else "Sin categoría"
+    if not cat:
+        return "Sin categoría"
+    for nombre, patron in CATEGORIAS:
+        if patron.search(cat):
+            return nombre
+    return cat.split()[0].capitalize()
 
 
 # ── Planilla 2025 ────────────────────────────────────────────────────────────
