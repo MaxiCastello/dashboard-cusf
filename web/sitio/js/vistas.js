@@ -11,7 +11,7 @@ import { coma, conSigno, esc, fijo, mmss, pct, unDecimal, xdey } from "./formato
 import { acumulado, apiladas, barras, cajas, chances22, cintaJuego, dona, lineas, mapaCalor, marcadorEnElPartido, mariposa, pesas, piruletas, radar,
   temporadaJuego, tiemposJuego, tramosJuego }
   from "./graficos.js";
-import { aclarar, anillos, html, kpis, tabla } from "./piezas.js";
+import { aclarar, anillos, html, kpis, reparto, tabla } from "./piezas.js";
 import { MIN_AMARILLA, MIN_ROJA, OBJETIVOS, evaluar, minutosConUnoMenos, penales as penalesDe, temporada } from "./objetivos.js";
 import { capitalizar, conDefecto, enteroDeTexto, esVerdad, mayuscula, o, soloCifras, str } from "./python.js";
 import { ACENTO, AVISO, MAL, NEUTRO, RIVAL, UNI } from "./tema.js";
@@ -583,7 +583,8 @@ export function tackles(lz, t, partido = null) {
   const [c1, c2] = lz.columnas(2, "large");
   c1.titulo("Cómo fueron");
   c1.grafico(dona(TK.map(([, n]) => n), TK.map(([k]) => tipos[k]), TK.map(([, , c]) => c), `${pct(hech, total)}%`,
-    `completados · ${hech} de ${total}`, 300));
+    `completados · ${hech} de ${total}`, 300, false));
+  c1.html(reparto(TK.map(([k, n, c]) => [n, tipos[k], c]), total));
   nota(c1, "Un tackle negativo se completó igual; el único no completado es el errado (como en el Tackle Tracker).");
   if (partido && partido.tackles.some((f) => f.pt || f.st)) {
     c2.titulo("Por tiempo");

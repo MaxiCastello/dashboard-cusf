@@ -13,7 +13,7 @@ from . import calculos as C
 from . import graficos as G
 from . import objetivos as O
 from .estilo import (UNI, RIVAL, MAL, NEUTRO, ACENTO, AVISO, TK, TK_NOMBRE,
-                     esc, pct, xdey, html, kpis, anillos, aclarar, tabla, nota)
+                     esc, pct, xdey, html, kpis, anillos, aclarar, reparto, tabla, nota)
 
 MESES = ["", "ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
 # Formas de anotar: el mismo color en la torta de UNI y en la del rival
@@ -505,7 +505,8 @@ def tackles(t, partido=None):
     with c1:
         st.markdown("### Cómo fueron")
         G.dona([TK_NOMBRE[k] for k in TK], [tipos[k] for k in TK], [TK[k] for k in TK],
-               f"{pct(hechos, total)}%", f"completados · {hechos} de {total}", alto=300)
+               f"{pct(hechos, total)}%", f"completados · {hechos} de {total}", alto=300, leyenda=False)
+        reparto([(TK_NOMBRE[k], tipos[k], TK[k]) for k in TK], total)
         nota("Un tackle negativo se completó igual; el único no completado es el errado "
              "(como en el Tackle Tracker).")
     with c2:

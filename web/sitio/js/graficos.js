@@ -138,7 +138,8 @@ export function dibujar(el, fig) {
 
 // Torta con agujero; en el medio, el total o lo principal. null si no hay
 // nada que dibujar (el Python no dibuja nada).
-export function dona(etiquetas, valores, colores, centro, sub = "", alto = 280) {
+// leyenda = false (nov 2026): sin la leyenda de Plotly, cuando abajo va reparto().
+export function dona(etiquetas, valores, colores, centro, sub = "", alto = 280, leyenda = true) {
   const pares = etiquetas.map((e, i) => [e, valores[i], colores[i]]).filter(([, v]) => v);
   if (!pares.length) return null;
   const fig = {
@@ -159,6 +160,7 @@ export function dona(etiquetas, valores, colores, centro, sub = "", alto = 280) 
       margin: { t: 8, b: 8, l: 8, r: 8 }, legend: { y: -0.08 },
     },
   };
+  if (!leyenda) fig.layout.showlegend = false;
   return grafico(fig, alto);
 }
 

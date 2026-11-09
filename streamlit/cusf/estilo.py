@@ -126,6 +126,12 @@ table.t td {{ white-space:nowrap; }}
 table.t th:first-child, table.t td:first-child {{ text-align:left; font-family:'DM Sans',sans-serif; }}
 .tabla-scroll {{ overflow-x:auto; }}
 /* Objetivos: una card por objetivo; la marca y el color dicen lo mismo */
+/* ── Reparto debajo de una torta (nov 2026): color, rótulo, "a de b" y el % a la vista ── */
+.reparto {{ display:grid; gap:6px; margin:0 auto 10px; max-width:340px; }}
+.reparto .f {{ display:grid; grid-template-columns:12px 1fr auto 4.6em; align-items:center; gap:10px; font-size:.86rem; }}
+.reparto i {{ width:12px; height:12px; border-radius:3px; }}
+.reparto .d {{ font-family:'DM Mono',monospace; font-size:.76rem; color:var(--apagado); }}
+.reparto b {{ font-family:'Bebas Neue',sans-serif; font-size:1.3rem; font-weight:400; letter-spacing:.5px; text-align:right; line-height:1; }}
 .objs {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px; margin:4px 0 12px; }}
 .objc {{ background:{SUP}; border:1px solid {BORDE}; border-radius:12px; padding:12px 14px;
   display:flex; flex-direction:column; }}
@@ -189,6 +195,16 @@ def kpis(items):
         f'<div class="l">{esc(l)}</div></div>' for v, l, c in items) + "</div>")
 
 
+
+
+def reparto(items, b):
+    """items: [(rótulo, a, color)], partes de un total b -> un renglón por item:
+    el color, el rótulo, "a de b" y el % con un decimal. Va debajo de una torta
+    (nov 2026: tackles) para que el % se vea sin pasar el cursor."""
+    filas = "".join(f'<div class="f"><i style="background:{esc(color)}"></i><span>{esc(rotulo)}</span>'
+                    f'<span class="d">{esc(a)} de {esc(b)}</span><b>{f"{a * 100 / b:.1f}" if b else "0.0"}%</b></div>'
+                    for rotulo, a, color in items)
+    html(f'<div class="reparto">{filas}</div>')
 
 
 def anillos(items, columnas=None):

@@ -5,7 +5,7 @@
 // escapa, salvo que ya sea HTML armado con html`...`. Así un nombre cargado
 // con etiquetas se ve como texto y no se ejecuta (el lint sólo deja poner
 // en innerHTML lo que sale de html`...`).
-import { esc, pct, redondear } from "./formato.js";
+import { esc, fijo, pct, redondear } from "./formato.js";
 import { str } from "./python.js";
 import { SUP2, TEXTO } from "./tema.js";
 
@@ -34,6 +34,15 @@ export function kpis(items) {
   return html`<div class="kpis">${items.map(([v, l, c, x]) =>
     html`<div class="kpi"><div class="v" style="color:${c || TEXTO}">${v}</div><div class="l">${l}</div>${
       x ? html`<div class="x">${x}</div>` : ""}</div>`)}</div>`;
+}
+
+// items: [[rótulo, a, color]], partes de un total b -> un renglón por item:
+// el color, el rótulo, "a de b" y el % con un decimal. Va debajo de una torta
+// (nov 2026: tackles) para que el % se vea sin pasar el cursor.
+export function reparto(items, b) {
+  return html`<div class="reparto">${items.map(([rotulo, a, color]) =>
+    html`<div class="f"><i style="background:${color}"></i><span>${rotulo}</span><span class="d">${a} de ${b}</span><b>${
+      b ? fijo((a * 100) / b, 1) : "0.0"}%</b></div>`)}</div>`;
 }
 
 // items: [[rótulo, a, b, color, arriba|null]] -> un anillo por item con "a",

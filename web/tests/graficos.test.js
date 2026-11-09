@@ -22,7 +22,7 @@ for (const sub of ["base", "demo"]) {
       const [t] = fig.data;
       const m = fig.layout.annotations[0].text.match(CENTRO);
       assert.ok(m, `${donde}: centro con otra forma`);
-      const hecha = dona(t.labels, t.values, t.marker.colors, m[1], m[2] ?? "", fig.layout.height);
+      const hecha = dona(t.labels, t.values, t.marker.colors, m[1], m[2] ?? "", fig.layout.height, fig.layout.showlegend !== false);
       assert.deepEqual(hecha, fig, donde);
     }
   });

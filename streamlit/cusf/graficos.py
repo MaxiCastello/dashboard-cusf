@@ -12,8 +12,9 @@ from .estilo import UNI, RIVAL, ACENTO, APAGADO, BORDE, SUP2, TEXTO, pct, grafic
 BEBAS = "Bebas Neue, Arial Narrow, sans-serif"
 
 
-def dona(etiquetas, valores, colores, centro, sub="", alto=280):
-    """Torta con agujero; en el medio, el total o lo principal."""
+def dona(etiquetas, valores, colores, centro, sub="", alto=280, leyenda=True):
+    """Torta con agujero; en el medio, el total o lo principal. leyenda=False
+    (nov 2026): sin la leyenda de Plotly, cuando abajo va reparto()."""
     pares = [(e, v, c) for e, v, c in zip(etiquetas, valores, colores) if v]
     if not pares:
         return
@@ -26,6 +27,8 @@ def dona(etiquetas, valores, colores, centro, sub="", alto=280):
                             + (f"<br><span style='font-size:11px;color:{APAGADO}'>{sub}</span>" if sub else ""),
                        showarrow=False, x=.5, y=.5, xref="paper", yref="paper")
     fig.update_layout(margin=dict(t=8, b=8, l=8, r=8), legend=dict(y=-0.08))
+    if not leyenda:
+        fig.update_layout(showlegend=False)
     grafico(fig, alto)
 
 
