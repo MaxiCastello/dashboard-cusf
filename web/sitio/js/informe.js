@@ -33,6 +33,12 @@ const anillos = (items) => ({
   tipo: "anillos",
   items: items.map(([rotulo, a, b, color, grupo = null, abajo = null]) => ({ rotulo, a, b, pct: b ? pct(a, b) : null, color, grupo, abajo })),
 });
+// las partes de un total (nov 2026: los tipos de tackle): una barra con los
+// colores y, debajo, cada parte con su % (un decimal) y "a de total"
+const reparto = (items, total) => ({
+  tipo: "reparto", total,
+  items: items.map(([rotulo, a, color]) => ({ rotulo, a, pct: total ? fijo((a * 100) / total, 1) : "0.0", color })),
+});
 // UNI hacia la izquierda, el rival hacia la derecha; `valor` es el largo de la barra
 const mariposa = (titulo, filas, { nombres = ["UNI", "Rival"], colores = ["uni", "rival"], porCiento = false } = {}) => ({
   tipo: "mariposa", titulo, nombres, colores, porCiento,
@@ -262,6 +268,10 @@ function tackles(ps, partido = null) {
   const items = [[total, "Intentos de tackle", null], [`${hech} de ${total}`, "Completados", "uni"], [err, "Errados", "mal"]];
   if (conTk > 1) items.splice(1, 0, [fijo(total / conTk, 0), "Intentos por partido", null]);
   out.push(kpis(items));
+  // cómo fueron (como debajo de la torta del tablero)
+  const tipo = (k) => jug.reduce((s, j) => s + j[k], 0);
+  out.push(reparto([["Positivos", tipo("pos"), "uni"], ["Neutrales", tipo("neu"), "neutro"], ["Negativos", tipo("neg"), "aviso"],
+    ["Errados", err, "mal"]], total));
   if (partido && partido.tackles.some((f) => f.pt || f.st)) {
     const s = (k) => partido.tackles.reduce((a, f) => a + f[k], 0);
     out.push(anillos([["Completados", s("pt") - s("pt_err"), s("pt"), "uni", "1° tiempo"],

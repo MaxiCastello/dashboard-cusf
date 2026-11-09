@@ -320,6 +320,48 @@ function anillos(h, b) {
   h.y += alto + 12;
 }
 
+// Las partes de un total (nov 2026: los tipos de tackle), en una caja: arriba
+// una barra con cada parte de su color y de su largo; debajo, una columna por
+// parte con el color, el nombre, el % grande y "a de total".
+const REP_ALTO = 76;
+function reparto(h, b) {
+  h.lugar(REP_ALTO + h.cola);
+  const d = h.doc, y = h.y, pad = 10, n = b.items.length;
+  d.setFillColor(C.caja);
+  d.roundedRect(M, y, CW, REP_ALTO, 5, 5, "F");
+  // la barra: el fondo gris (por si el total es 0) y cada parte encima
+  const bx = M + pad, bw = CW - 2 * pad, by = y + 11, bh = 9;
+  d.setFillColor(C.linea);
+  d.roundedRect(bx, by, bw, bh, 2, 2, "F");
+  let x = bx;
+  const partes = b.total ? b.items.filter((it) => it.a > 0) : [];
+  partes.forEach((it, i) => {
+    const w = i === partes.length - 1 ? bx + bw - x : (bw * it.a) / b.total;
+    d.setFillColor(relleno(it.color));
+    d.rect(x, by, w, bh, "F");
+    x += w;
+    // una rayita blanca entre partes
+    if (i < partes.length - 1) {
+      d.setFillColor("#ffffff");
+      d.rect(x - 0.4, by, 0.8, bh, "F");
+    }
+  });
+  // las columnas
+  const cw = bw / n;
+  b.items.forEach((it, i) => {
+    const cx = bx + i * cw;
+    d.setFillColor(relleno(it.color));
+    d.roundedRect(cx, y + 31.5, 6, 6, 1.2, 1.2, "F");
+    h.letra("DMMono", 6, C.gris);
+    h.texto(it.rotulo.toUpperCase(), cx + 9, y + 37, { espacio: 0.6, max: cw - 12 });
+    h.letra("Bebas", 19, C.tinta);
+    h.texto(`${it.pct}%`, cx, y + 56, { max: cw - 4 });
+    h.letra("DMMono", 6.5, C.gris);
+    h.texto(`${it.a} de ${b.total}`, cx, y + 67, { max: cw - 4 });
+  });
+  h.y += REP_ALTO + 12;
+}
+
 const MAR_FILA = 17;
 const marAlto = (b) => 26 + b.filas.length * MAR_FILA;
 function mariposa(h, b) {
@@ -787,7 +829,7 @@ function renglonesMixtos(h, partes, max) {
 
 const altoCajas = (h, b) => 18 + renglonesMixtos(h, b.frase, CW).length * CAJ_RENGLON + 6 + CAJ_ALTO + 10;
 
-const DIBUJAR = { encabezado, seccion, kpis, anillos, mariposa, tabla, nota, frase, marcador, objetivos, cajas };
+const DIBUJAR = { encabezado, seccion, kpis, anillos, reparto, mariposa, tabla, nota, frase, marcador, objetivos, cajas };
 
 // Lo primero de un bloque que no se puede cortar: una fila de números o de
 // anillos, un gráfico entero, el encabezado de una tabla y 3 renglones, una
@@ -799,6 +841,7 @@ function primero(h, b, cola = 0) {
   switch (b.tipo) {
     case "kpis": return KPI_ALTO + (b.items.length <= columnas(b.items.length) ? cola : 0);
     case "anillos": return aniAlto(b) + (b.items.length <= columnas(b.items.length) ? cola : 0);
+    case "reparto": return REP_ALTO + cola;
     case "mariposa": return Math.min(marAlto(b) + cola, ABAJO - ARRIBA);
     case "tabla": {
       const { fila, cab } = medTabla(b);
