@@ -33,9 +33,13 @@ const SECCIONES_TEMPORADA = [V.resumen, V.evolucion, V.puntos, V.formaciones, V.
 // tests/vistas.test.js y fuzz_vistas.py) y el Informe.
 export const PESTANAS_PARTIDO = [...V.SECCIONES_PARTIDO.map(([, rotulo]) => rotulo), "Informe"];
 
-// Las mismas pestañas con "Tiempo de juego" justo antes de la última (Informe).
-// Sólo se usa si hay tiempos cargados: si no, las pestañas quedan como siempre.
-const conTiempoDeJuego = (rotulos) => [...rotulos.slice(0, -1), "Tiempo de juego", rotulos.at(-1)];
+// Las mismas pestañas con "Tiempo de juego" segunda, después de Resumen (pedido
+// del usuario, 9 nov 2026; antes iba antes del Informe). Sólo se usa si hay
+// tiempos cargados: si no, las pestañas quedan como siempre.
+const TJ = 1;
+const conTiempoDeJuego = (rotulos) => [...rotulos.slice(0, TJ), "Tiempo de juego", ...rotulos.slice(TJ)];
+// el número de pestaña sin la de Tiempo de juego (para las listas de secciones)
+const sinTJ = (conTJ, i) => (conTJ && i > TJ ? i - 1 : i);
 
 // Algo falló: sólo el mensaje (como el Python, que deja de mostrar el tablero).
 export function fallo(err) {
@@ -133,11 +137,11 @@ export function tablero({ partidos, errorBase = null }) {
         poner(cont, html`<div class="aviso info" role="status">Todavía no hay partidos de esta temporada.</div>`);
         return;
       }
-      // "Tiempo de juego" (nov 2026), antes del Informe, sólo si algún partido lo tiene cargado
+      // "Tiempo de juego" (nov 2026), después de Resumen, sólo si algún partido lo tiene cargado
       const conTJ = t.partidos.some((x) => x.tiempo_juego);
       pestanas(cont, conTJ ? conTiempoDeJuego(PESTANAS_TEMPORADA) : PESTANAS_TEMPORADA, seguro((i, panel) => {
-        if (conTJ && i === SECCIONES_TEMPORADA.length) return V.tiempoDeJuegoTemporada(new EnPagina(panel), t);
-        const f = SECCIONES_TEMPORADA[i];
+        if (conTJ && i === TJ) return V.tiempoDeJuegoTemporada(new EnPagina(panel), t);
+        const f = SECCIONES_TEMPORADA[sinTJ(conTJ, i)];
         if (f) f(new EnPagina(panel), t);
         else pestanaInforme(panel, t, cat);
       }), pestana);
@@ -158,8 +162,8 @@ export function tablero({ partidos, errorBase = null }) {
     // (las pestañas van debajo del marcador; apagarPestanas(cont) también las apaga)
     const conTJ = !!p.tiempo_juego;
     pestanas(lz.poner(html`<div class="pestanas-partido"></div>`), conTJ ? conTiempoDeJuego(PESTANAS_PARTIDO) : PESTANAS_PARTIDO, seguro((i, panel) => {
-      if (conTJ && i === V.SECCIONES_PARTIDO.length) return V.tiempoDeJuego(new EnPagina(panel), p);
-      const f = V.SECCIONES_PARTIDO[i]?.[2];
+      if (conTJ && i === TJ) return V.tiempoDeJuego(new EnPagina(panel), p);
+      const f = V.SECCIONES_PARTIDO[sinTJ(conTJ, i)]?.[2];
       if (f) f(new EnPagina(panel), p, t, tp);
       else pestanaInforme(panel, t, estado.cat, p);
     }), pestana);

@@ -45,6 +45,36 @@ export function reparto(items, b) {
       b ? fijo((a * 100) / b, 1) : "0.0"}%</b></div>`)}</div>`;
 }
 
+// La lupa del tiempo de juego (nov 2026): arriba una barra con el total y sus
+// partes; debajo, la primera parte de arriba ampliada a todo el ancho y
+// partida en otras. Cada barra: [título, total ya escrito, [[rótulo, valor,
+// color]]]; `fmt` escribe los valores. El % va adentro de la barra si entra y
+// siempre abajo, con el valor (en el celular no hay cursor).
+export function lupa(arriba, abajo, fmt) {
+  const barra = ([titulo, total, partes]) => {
+    const suma = partes.reduce((s, [, v]) => s + v, 0);
+    return html`<div class="lb"><div class="lt"><span>${titulo}</span><b>${total}</b></div><div class="lr">${
+      partes.map(([, v, c]) => html`<div style="flex:${v} 0 0;background:${c}">${pct(v, suma) >= 12 ? html`<span>${pct(v, suma)}%</span>` : ""}</div>`)
+    }</div><div class="ll">${partes.map(([r, v, c]) =>
+      html`<div><span class="r"><i style="background:${c}"></i>${r}</span><span class="v">${fmt(v)}<small>${pct(v, suma)}%</small></span></div>`)}</div></div>`;
+  };
+  const suma = arriba[2].reduce((s, [, v]) => s + v, 0);
+  const p = suma ? fijo((arriba[2][0][1] * 100) / suma, 2) : "0.00";
+  return html`<div class="lupa">${barra(arriba)}<div class="lz" style="clip-path:polygon(0 0,${p}% 0,100% 100%,0 100%)"></div>${barra(abajo)}</div>`;
+}
+
+// Cuánto duró cada tramo (nov 2026): el promedio y el más largo del mismo
+// tamaño, y una regla cuyo largo entero es el más largo y la parte pintada el
+// promedio. items: [[título, promedio|null, máximo|null, color, al lado del
+// título|null, debajo del máximo|null]]; `fmt` escribe los tiempos.
+export function tramos(items, fmt) {
+  return html`<div class="tramos">${items.map(([titulo, prom, max, color, lado, bajo]) =>
+    html`<div class="tr"><div class="tt"><span>${titulo}</span>${lado ? html`<small>${lado}</small>` : ""}</div><div class="tv"><div><span>Promedio</span><b>${
+      prom === null ? "—" : fmt(prom)}</b></div><div><span>El más largo</span><b>${max === null ? "—" : fmt(max)}</b>${
+      bajo ? html`<small>${bajo}</small>` : ""}</div></div>${prom !== null && max ? html`<div class="rg"><div style="width:${
+      fijo(Math.min(100, (prom * 100) / max), 2)}%;background:${color}"></div></div>` : ""}</div>`)}</div>`;
+}
+
 // items: [[rótulo, a, b, color, arriba|null]] -> un anillo por item con "a",
 // abajo "de b" y el % (en tres renglones: entra aunque sean miles). `arriba`
 // es el grupo (UNI / Rival).

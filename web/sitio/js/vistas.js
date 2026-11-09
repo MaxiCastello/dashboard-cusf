@@ -11,7 +11,7 @@ import { coma, conSigno, esc, fijo, mmss, pct, unDecimal, xdey } from "./formato
 import { acumulado, apiladas, barras, cajas, chances22, cintaJuego, dona, lineas, mapaCalor, marcadorEnElPartido, mariposa, pesas, piruletas, radar,
   temporadaJuego, tiemposJuego, tramosJuego }
   from "./graficos.js";
-import { aclarar, anillos, html, kpis, reparto, tabla } from "./piezas.js";
+import { aclarar, anillos, html, kpis, lupa, reparto, tabla, tramos } from "./piezas.js";
 import { MIN_AMARILLA, MIN_ROJA, OBJETIVOS, evaluar, minutosConUnoMenos, penales as penalesDe, temporada } from "./objetivos.js";
 import { capitalizar, conDefecto, enteroDeTexto, esVerdad, mayuscula, o, soloCifras, str } from "./python.js";
 import { ACENTO, AVISO, MAL, NEUTRO, RIVAL, UNI } from "./tema.js";
@@ -716,14 +716,19 @@ export function contraTemporada(lz, p, t) {
 // UNI + Rival (en lo de Uni-Dat es igual al tiempo en juego; a mano, la
 // planilla puede no cuadrar justo).
 
-// [valor, rótulo, null, renglón chico] para kpis, o null si no hay promedio
-// ni máximo. La cantidad sólo cuando se contó tramo por tramo (lista): la de
-// lo cargado a mano es estimada y no se muestra.
-function kpiTramos(st, rotulo, cuales) {
+// Un item de tramos() (el promedio y el más largo), o null si no hay ni uno
+// ni otro. La cantidad sólo cuando se contó tramo por tramo (lista): la de lo
+// cargado a mano es estimada y no se muestra.
+function tramo(st, titulo, color, cuales) {
   if (!st || (st.prom === null && st.max === null)) return null;
-  if (st.prom === null) return [mmss(st.max), rotulo.replace("Promedio", "Máximo").replace("prom.", "máx."), null, null];
-  const abajo = [st.max === null ? null : `Máximo ${mmss(st.max)}`, st.lista.length ? `${st.n} ${cuales}` : null].filter(Boolean);
-  return [mmss(st.prom), rotulo, null, abajo.length ? abajo.join(" · ") : null];
+  return [titulo, st.prom, st.max, color, st.lista.length ? `${st.n} ${cuales}` : null, null];
+}
+
+// La lupa: el partido (en juego y pelota muerta) y, ampliado, el tiempo en
+// juego partido en quién tuvo la pelota. La posesión es sobre UNI + Rival.
+function lupaJuego(bip, out, uni, riv, cuando = "") {
+  return lupa([`El partido${cuando}`, mmss(bip + out), [["En juego", bip, ACENTO], ["Pelota muerta", out, NEUTRO]]],
+    [`El tiempo en juego${cuando}`, mmss(bip), [["UNI con la pelota", uni, UNI], ["Rival con la pelota", riv, RIVAL]]], mmss);
 }
 
 // "18:16 de 31:00 · 59%"
@@ -736,15 +741,11 @@ export function tiempoDeJuego(lz, p) {
     nota(lz, "Este partido no tiene el tiempo de juego cargado (se carga en Uni-Dat, sección TIEMPO DE JUEGO, o en CARGAR PARTIDO).");
     return;
   }
-  const pos = tj.uni + tj.riv;
-  lz.html(anillos([
-    ["En juego (BIP)", tj.bip, tj.bip + tj.out, ACENTO, "Del partido"],
-    ["Posesión UNI", tj.uni, pos, UNI, "Del tiempo en juego"],
-    ["Posesión Rival", tj.riv, pos, RIVAL, "Del tiempo en juego"],
-  ], null, mmss));
-  const promedios = [kpiTramos(tj.tBip, "BIP Promedio", "tramos"), kpiTramos(tj.tOut, "Pelota muerta Promedio", "tramos"),
-    kpiTramos(tj.posUni, "Posesión prom. UNI", "posesiones"), kpiTramos(tj.posRiv, "Posesión prom. Rival", "posesiones")].filter(Boolean);
-  if (promedios.length) lz.html(kpis(promedios));
+  lz.html(lupaJuego(tj.bip, tj.out, tj.uni, tj.riv));
+  const cada = [tramo(tj.tBip, "Pelota en juego, cada tramo", ACENTO, "tramos"),
+    tramo(tj.tOut, "Pelota muerta, cada tramo", NEUTRO, "tramos"),
+    tramo(tj.posUni, "Cada posesión de UNI", UNI, "posesiones"), tramo(tj.posRiv, "Cada posesión del rival", RIVAL, "posesiones")].filter(Boolean);
+  if (cada.length) lz.html(tramos(cada, mmss));
   // lo cargado a mano no tiene los tramos: sin cinta, sin duración de cada uno y sin 1° / 2° tiempo
   if (!tj.segmentos) return;
   lz.titulo("La cinta del partido");
@@ -765,14 +766,14 @@ export function tiempoDeJuego(lz, p) {
 // cantidad de tramos), no el promedio de los promedios (un partido de 20
 // tramos pesaría igual que uno de 60). De lo cargado a mano la cantidad se
 // estima (total ÷ su promedio). Y el tramo más largo, con su partido.
-function kpiTemporada(ps, k, total, rotulo) {
+function tramoTemporada(ps, k, total, titulo, color) {
   const con = ps.filter((p) => p.tiempo_juego[k].n);
   const conMax = ps.filter((p) => p.tiempo_juego[k].max !== null);
   if (!con.length && !conMax.length) return null;
   const prom = con.length ? con.reduce((a, p) => a + p.tiempo_juego[total], 0) / con.reduce((a, p) => a + p.tiempo_juego[k].n, 0) : null;
   const mayor = conMax.reduce((m, p) => (m && m.tiempo_juego[k].max >= p.tiempo_juego[k].max ? m : p), null);
-  const abajo = mayor ? `Máximo ${mmss(mayor.tiempo_juego[k].max)} · ${etiqueta(mayor)}` : null;
-  return [prom === null ? "—" : mmss(prom), rotulo, null, abajo];
+  // el más largo de la temporada, con el partido en que pasó
+  return [titulo, prom, mayor ? mayor.tiempo_juego[k].max : null, color, null, mayor ? etiqueta(mayor) : null];
 }
 
 // La temporada (o un torneo): sólo los partidos que tienen el tiempo cargado.
@@ -786,14 +787,10 @@ export function tiempoDeJuegoTemporada(lz, t) {
   const suma = (f) => tjs.reduce((a, x) => a + f(x), 0);
   const bip = suma((x) => x.bip), out = suma((x) => x.out), uni = suma((x) => x.uni), riv = suma((x) => x.riv);
   // promedio por partido (la suma ÷ los partidos): el % es el mismo que el de la temporada entera
-  lz.html(anillos([
-    ["En juego (BIP)", bip / n, (bip + out) / n, ACENTO, "Por partido"],
-    ["Posesión UNI", uni / n, (uni + riv) / n, UNI, "Por partido"],
-    ["Posesión Rival", riv / n, (uni + riv) / n, RIVAL, "Por partido"],
-  ], null, mmss));
-  const tramos = [kpiTemporada(ps, "tBip", "bip", "BIP Promedio por tramo"),
-    kpiTemporada(ps, "tOut", "out", "Pelota muerta Promedio por tramo")].filter(Boolean);
-  if (tramos.length) lz.html(kpis(tramos));
+  lz.html(lupaJuego(bip / n, out / n, uni / n, riv / n, ", en promedio"));
+  const cada = [tramoTemporada(ps, "tBip", "bip", "Pelota en juego, cada tramo", ACENTO),
+    tramoTemporada(ps, "tOut", "out", "Pelota muerta, cada tramo", NEUTRO)].filter(Boolean);
+  if (cada.length) lz.html(tramos(cada, mmss));
   nota(lz, `Promedio de ${n} ${n === 1 ? "partido" : "partidos"}. El promedio por tramo cuenta juntos todos los tramos de la temporada. ` +
     `${n} de ${t.partidos.length} partidos tienen el tiempo de juego cargado.`);
   if (n >= 2) {

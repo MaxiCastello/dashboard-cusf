@@ -175,23 +175,25 @@ test("a mano: partido suelto y complemento de Uni-Dat; prioridad Uni-Dat y no se
   assert.equal(Object.hasOwn(armarComplemento(valoresComplemento(b2), b2).fila.datos, "tiempo_juego"), false);
 });
 
-test("a mano: el partido muestra anillos y promedios (sin cinta) y la temporada junta todos los tramos", () => {
+test("a mano: el partido muestra la lupa y los tramos (sin cinta) y la temporada junta todos los tramos", () => {
   const ps = partidosBase([fila("a", CORTO), fila("b")], [manual("m", PLANILLA, "b")]);
   const lz = new Registro();
   tiempoDeJuego(lz, ps[1]);
   assert.equal(lz.llamadas.filter((l) => l.f === "plotly_chart").length, 0);
   const txt = JSON.stringify(lz.llamadas);
-  assert.ok(txt.includes('18:16<span class=\\"de\\">de 31:00</span><small>59%</small>'), "posesión sobre UNI + Rival");
-  assert.ok(txt.includes("Máximo 2:02") && !txt.includes("tramos"), "sin la cantidad estimada");
-  assert.ok(!txt.includes("Posesión prom."));
+  assert.ok(txt.includes("18:16<small>59%</small>"), "posesión sobre UNI + Rival (18:16 de 31:00)");
+  assert.ok(txt.includes("El partido") && txt.includes("<b>1:25:29</b>") && txt.includes("<b>30:10</b>"), "los dos totales de la lupa");
+  assert.ok(txt.includes("<b>0:32</b>") && txt.includes("<b>2:02</b>"), "promedio y el más largo, del mismo tamaño");
+  assert.ok(!/\d+ tramos/.test(txt), "sin la cantidad estimada");
+  assert.ok(!txt.includes("Cada posesión"));
   // temporada: 2 tramos de Uni-Dat (60 s) + 57 estimados (1810 s) → (60 + 1810) / 59 = 31,7 s ≈ 0:32
   const t = temporada(ps, 2026, "Primera");
   const lt = new Registro();
   tiempoDeJuegoTemporada(lt, t);
   const tt = JSON.stringify(lt.llamadas);
   assert.equal(lt.llamadas.filter((l) => l.f === "plotly_chart").length, 2);   // la línea partido a partido + las barras
-  assert.ok(tt.includes("BIP Promedio por tramo") && tt.includes("0:32"));
-  assert.ok(tt.includes("Máximo 2:02 · "), "el tramo más largo, con su partido");
+  assert.ok(tt.includes("Pelota en juego, cada tramo") && tt.includes("<b>0:32</b>"));
+  assert.ok(/<b>2:02<\/b><small>[^<]+<\/small>/.test(tt.replaceAll("\\", "")), "el tramo más largo, con su partido");
   assert.ok(tt.includes("2 de 2 partidos tienen el tiempo de juego cargado."));
 });
 

@@ -242,6 +242,35 @@ table.objetivos td.sd { color:var(--apagado); font-size:.75rem; }
 .marcador .info { font-family:'DM Mono',monospace; font-size:.7rem; color:var(--apagado); text-align:center; }
 
 /* ── Anillos "X de Y" ────────────────────────────────────────────────────── */
+/* ── Tiempo de juego (nov 2026): la lupa y los tramos ── */
+.lupa { background:var(--sup); border:1px solid var(--borde); border-radius:12px; padding:14px 16px 12px; margin:4px 0 14px; }
+.lupa .lt { display:flex; justify-content:space-between; align-items:baseline; gap:10px;
+  font-family:'DM Mono',monospace; font-size:.68rem; letter-spacing:1.5px; text-transform:uppercase; color:var(--apagado); }
+.lupa .lt b { font-family:'Bebas Neue',sans-serif; font-weight:400; font-size:1.25rem; letter-spacing:1px; color:var(--texto); }
+.lupa .lr { display:flex; height:26px; border-radius:6px; overflow:hidden; margin-top:6px; gap:2px; background:var(--sup2); }
+.lupa .lr div { min-width:0; display:flex; align-items:center; justify-content:center; }
+.lupa .lr span { font-family:'Bebas Neue',sans-serif; font-size:1.05rem; letter-spacing:.5px; color:#0a0c0f; }
+.lupa .ll { display:flex; justify-content:space-between; gap:12px; margin-top:8px; }
+.lupa .ll > div { display:flex; flex-direction:column; gap:1px; min-width:0; }
+.lupa .ll > div:last-child { text-align:right; align-items:flex-end; }
+.lupa .ll .r { font-size:.8rem; color:var(--apagado); display:flex; align-items:center; gap:6px; }
+.lupa .ll i { width:10px; height:10px; border-radius:3px; flex:none; }
+.lupa .ll .v { font-family:'Bebas Neue',sans-serif; font-size:1.7rem; line-height:1.05; letter-spacing:.5px; }
+.lupa .ll small { font-family:'DM Mono',monospace; font-size:.75rem; color:var(--apagado); margin-left:6px; letter-spacing:0; }
+.lupa .lz { height:22px; margin:6px 0 8px; background:linear-gradient(rgba(26,111,212,.55),rgba(26,111,212,.14)); }
+.tramos { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px; margin:4px 0 14px; }
+.tramos .tr { background:var(--sup); border:1px solid var(--borde); border-radius:12px; padding:12px 16px 14px; }
+.tramos .tt { display:flex; justify-content:space-between; align-items:baseline; gap:8px;
+  font-family:'DM Mono',monospace; font-size:.68rem; letter-spacing:1.5px; text-transform:uppercase; color:var(--apagado); }
+.tramos .tt small { letter-spacing:.5px; text-transform:none; font-size:.7rem; }
+.tramos .tv { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px; }
+.tramos .tv > div { display:flex; flex-direction:column; }
+.tramos .tv > div:last-child { text-align:right; align-items:flex-end; }
+.tramos .tv span { font-size:.78rem; color:var(--apagado); }
+.tramos .tv b { font-family:'Bebas Neue',sans-serif; font-weight:400; font-size:2.3rem; line-height:1; letter-spacing:.5px; margin-top:2px; }
+.tramos .tv small { font-size:.72rem; color:var(--apagado); margin-top:2px; }
+.tramos .rg { height:8px; border-radius:4px; background:var(--sup2); margin-top:12px; overflow:hidden; }
+.tramos .rg div { height:100%; border-radius:4px; }
 .anillos { display:grid; grid-template-columns:repeat(auto-fit,minmax(132px,1fr)); gap:10px; margin:4px 0 14px; }
 .anillo { background:var(--sup); border:1px solid var(--borde); border-radius:12px; padding:14px 8px 12px; text-align:center; }
 .anillo .r { width:104px; height:104px; margin:0 auto; border-radius:50%; position:relative;
