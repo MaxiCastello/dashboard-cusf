@@ -50,29 +50,62 @@ export function reparto(items, b) {
 // partida en otras. Cada barra: [título, total ya escrito, [[rótulo, valor,
 // color]]]; `fmt` escribe los valores. El % va adentro de la barra si entra y
 // siempre abajo, con el valor (en el celular no hay cursor).
-export function lupa(arriba, abajo, fmt) {
+// Cada parte puede traer un 4° elemento: un renglón chico debajo de su valor
+// (ej. "Temporada 34%": el partido al lado de la temporada, sin opinar).
+// `frase` (opcional): lo principal dicho en palabras, arriba de todo.
+export function lupa(arriba, abajo, fmt, frase = null) {
   const barra = ([titulo, total, partes]) => {
     const suma = partes.reduce((s, [, v]) => s + v, 0);
     return html`<div class="lb"><div class="lt"><span>${titulo}</span><b>${total}</b></div><div class="lr">${
       partes.map(([, v, c]) => html`<div style="flex:${v} 0 0;background:${c}">${pct(v, suma) >= 12 ? html`<span>${pct(v, suma)}%</span>` : ""}</div>`)
-    }</div><div class="ll">${partes.map(([r, v, c]) =>
-      html`<div><span class="r"><i style="background:${c}"></i>${r}</span><span class="v">${fmt(v)}<small>${pct(v, suma)}%</small></span></div>`)}</div></div>`;
+    }</div><div class="ll">${partes.map(([r, v, c, ref]) =>
+      html`<div><span class="r"><i style="background:${c}"></i>${r}</span><span class="v">${fmt(v)}<small>${pct(v, suma)}%</small></span>${
+        ref ? html`<span class="t">${ref}</span>` : ""}</div>`)}</div></div>`;
   };
   const suma = arriba[2].reduce((s, [, v]) => s + v, 0);
   const p = suma ? fijo((arriba[2][0][1] * 100) / suma, 2) : "0.00";
-  return html`<div class="lupa">${barra(arriba)}<div class="lz" style="clip-path:polygon(0 0,${p}% 0,100% 100%,0 100%)"></div>${barra(abajo)}</div>`;
+  return html`<div class="lupa">${frase ? html`<p class="lf">${frase}</p>` : ""}${barra(arriba)}<div class="lz" style="clip-path:polygon(0 0,${
+    p}% 0,100% 100%,0 100%)"></div>${barra(abajo)}</div>`;
 }
 
-// Cuánto duró cada tramo (nov 2026): el promedio y el más largo del mismo
-// tamaño, y una regla cuyo largo entero es el más largo y la parte pintada el
-// promedio. items: [[título, promedio|null, máximo|null, color, al lado del
-// título|null, debajo del máximo|null]]; `fmt` escribe los tiempos.
+// Cuánto duró cada vez (nov 2026): el promedio y la más larga, del mismo
+// tamaño. items: [[título, promedio|null, máximo|null, color (el cuadradito
+// del título, el mismo de la lupa), al lado del título|null, debajo del
+// máximo|null]]; `fmt` escribe los tiempos.
 export function tramos(items, fmt) {
-  return html`<div class="tramos">${items.map(([titulo, prom, max, color, lado, bajo]) =>
-    html`<div class="tr"><div class="tt"><span>${titulo}</span>${lado ? html`<small>${lado}</small>` : ""}</div><div class="tv"><div><span>Promedio</span><b>${
-      prom === null ? "—" : fmt(prom)}</b></div><div><span>El más largo</span><b>${max === null ? "—" : fmt(max)}</b>${
-      bajo ? html`<small>${bajo}</small>` : ""}</div></div>${prom !== null && max ? html`<div class="rg"><div style="width:${
-      fijo(Math.min(100, (prom * 100) / max), 2)}%;background:${color}"></div></div>` : ""}</div>`)}</div>`;
+  // de a cuatro, en dos filas de dos (en una sola fila los títulos se parten)
+  // `fmt` da [número, unidad]: el número grande y la unidad chica al lado ("41 seg", "2:10 min")
+  const num = (v) => {
+    if (v === null) return "—";
+    const [n, u] = fmt(v);
+    return html`${n}<small>${u}</small>`;
+  };
+  return html`<div class="tramos${items.length === 4 ? " c4" : ""}">${items.map(([titulo, prom, max, color, lado, bajo]) =>
+    html`<div class="tr"><div class="tt"><span><i style="background:${color}"></i>${titulo}</span>${
+      lado ? html`<small>${lado}</small>` : ""}</div><div class="tv"><div><span>Promedio</span><b>${num(prom)}</b></div><div><span>La más larga</span><b>${
+      num(max)}</b>${bajo ? html`<small>${bajo}</small>` : ""}</div></div></div>`)}</div>`;
+}
+
+// Cada partido de la temporada en dos renglones, con los minutos escritos (en
+// el celular no hay cursor): el partido (en juego / pelota muerta) y el tiempo
+// en juego (UNI / Rival con la pelota). items: [[partido, aclaración|null,
+// [[rótulo, valor, color], [rótulo, valor, color]], [[...], [...]]]]; `fmt`
+// escribe los valores.
+export function porPartido(items, fmt) {
+  const renglon = ([a, b]) => {
+    const suma = a[1] + b[1];
+    const lado = ([r, v]) => html`<span><em>${r}</em> ${fmt(v)} <small>${pct(v, suma)}%</small></span>`;
+    return html`<div class="pr"><div class="px">${lado(a)}${lado(b)}</div><div class="pb">${
+      [a, b].map(([, v, c]) => html`<div style="flex:${v} 0 0;background:${c}"></div>`)}</div></div>`;
+  };
+  return html`<div class="porpartido">${items.map(([partido, aclaracion, arriba, abajo]) =>
+    html`<div class="pp"><div class="pt"><span>${partido}</span>${aclaracion ? html`<small>${aclaracion}</small>` : ""}</div>${
+      renglon(arriba)}${renglon(abajo)}</div>`)}</div>`;
+}
+
+// Avisos de cómo se cargó (no de cómo se jugó): un renglón por aviso.
+export function ojo(textos) {
+  return html`<div class="aviso ojo" role="note">${textos.map((t) => html`<p>${t}</p>`)}</div>`;
 }
 
 // items: [[rótulo, a, b, color, arriba|null]] -> un anillo por item con "a",

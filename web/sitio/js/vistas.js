@@ -7,11 +7,11 @@
 // Criterio de los números: primero "X de Y" y después el porcentaje, sin
 // jerga y sin decir si estuvo bien o mal.
 import { etiqueta, pjTexto, resultado, sumar, tacklesTemporada } from "./calculos.js";
-import { coma, conSigno, esc, fijo, mmss, pct, unDecimal, xdey } from "./formato.js";
+import { coma, conSigno, duracion, esc, fijo, mmss, pct, redondear, unDecimal, xdey } from "./formato.js";
 import { acumulado, apiladas, barras, cajas, chances22, cintaJuego, dona, lineas, mapaCalor, marcadorEnElPartido, mariposa, pesas, piruletas, radar,
-  temporadaJuego, tiemposJuego, tramosJuego }
+  rangosJuego }
   from "./graficos.js";
-import { aclarar, anillos, html, kpis, lupa, reparto, tabla, tramos } from "./piezas.js";
+import { aclarar, anillos, html, kpis, lupa, ojo, porPartido, reparto, tabla, tramos } from "./piezas.js";
 import { MIN_AMARILLA, MIN_ROJA, OBJETIVOS, evaluar, minutosConUnoMenos, penales as penalesDe, temporada } from "./objetivos.js";
 import { capitalizar, conDefecto, enteroDeTexto, esVerdad, mayuscula, o, soloCifras, str } from "./python.js";
 import { ACENTO, AVISO, MAL, NEUTRO, RIVAL, UNI } from "./tema.js";
@@ -716,64 +716,148 @@ export function contraTemporada(lz, p, t) {
 // UNI + Rival (en lo de Uni-Dat es igual al tiempo en juego; a mano, la
 // planilla puede no cuadrar justo).
 
-// Un item de tramos() (el promedio y el más largo), o null si no hay ni uno
-// ni otro. La cantidad sólo cuando se contó tramo por tramo (lista): la de lo
-// cargado a mano es estimada y no se muestra.
-function tramo(st, titulo, color, cuales) {
-  if (!st || (st.prom === null && st.max === null)) return null;
-  return [titulo, st.prom, st.max, color, st.lista.length ? `${st.n} ${cuales}` : null, null];
+// Las palabras son las de la cancha, no las de la app (pedido del usuario, 12
+// nov: que lo entiendan entrenadores y chicos): nada de "tramo" a la vista.
+// (lo de acá abajo lo usa también el informe PDF: informe.js)
+export const VEZ_JUEGO = "Cada vez que se jugó", VEZ_PARO = "Cada vez que se paró";
+
+// Un item de tramos() (el promedio y la más larga), o null si no hay ni uno
+// ni otro, o si no hubo ninguna (nunca se tocó RIVAL: no se muestra un 0).
+// La cantidad sólo cuando se contó una por una (lista): la de lo cargado a
+// mano es estimada y no se muestra.
+export function tramo(st, titulo, color) {
+  if (!st || st.n === 0 || (st.prom === null && st.max === null)) return null;
+  return [titulo, st.prom, st.max, color, st.lista.length ? `${st.n} ${st.n === 1 ? "vez" : "veces"}` : null, null];
+}
+
+// Lo principal en palabras: "De cada 10 minutos, la pelota estuvo en juego 3 y
+// medio" (al medio minuto más cercano). null si no hay nada medido.
+export const FRASE_EN_JUEGO = "De cada 10 minutos, la pelota estuvo en juego";
+// "3 y medio", "3", "medio"... (lo que va después de FRASE_EN_JUEGO)
+export function cuantoEnJuego(bip, out) {
+  if (!(bip + out)) return null;
+  const medios = redondear((20 * bip) / (bip + out)), n = Math.floor(medios / 2);
+  return medios % 2 ? (n ? `${n} y medio` : "medio") : String(n);
+}
+function fraseEnJuego(bip, out) {
+  const cuanto = cuantoEnJuego(bip, out);
+  return cuanto === null ? null : html`${FRASE_EN_JUEGO} <b>${cuanto}</b>.`;
+}
+
+// Lo medido en Uni-Dat con un solo tiempo: cuál se midió ("1°" o "2°"). null
+// si están los dos (o si se cargó a mano: la planilla es del partido entero).
+export function unTiempo(tj) {
+  if (!tj.segmentos) return null;
+  const pt = tj.PT.bip + tj.PT.out, st = tj.ST.bip + tj.ST.out;
+  return pt && st ? null : pt ? "1°" : "2°";
+}
+
+// Los totales de los partidos con tiempo de juego, para el promedio por
+// partido: sólo los enteros (uno con un solo tiempo medido lo bajaría); si
+// ninguno está entero, los que hay.
+export function totalesJuego(ps) {
+  const enteros = ps.filter((p) => !unTiempo(p.tiempo_juego));
+  const base = enteros.length ? enteros : ps;
+  const suma = (k) => base.reduce((a, p) => a + p.tiempo_juego[k], 0);
+  return { base, enteros, n: base.length, bip: suma("bip"), out: suma("out"), uni: suma("uni"), riv: suma("riv") };
 }
 
 // La lupa: el partido (en juego y pelota muerta) y, ampliado, el tiempo en
 // juego partido en quién tuvo la pelota. La posesión es sobre UNI + Rival.
-function lupaJuego(bip, out, uni, riv, cuando = "") {
-  return lupa([`El partido${cuando}`, mmss(bip + out), [["En juego", bip, ACENTO], ["Pelota muerta", out, NEUTRO]]],
-    [`El tiempo en juego${cuando}`, mmss(bip), [["UNI con la pelota", uni, UNI], ["Rival con la pelota", riv, RIVAL]]], mmss);
+// tot (opcional): los totales de la temporada, para poner debajo de cada
+// número del partido el % de la temporada.
+function lupaJuego(bip, out, uni, riv, { arriba = "El partido", abajo = "El tiempo en juego", frase = false, tot = null } = {}) {
+  const ref = (a, b) => (tot ? `Temporada ${pct(a, b)}%` : null);
+  const j = tot ? tot.bip + tot.out : 0, q = tot ? tot.uni + tot.riv : 0;
+  return lupa([arriba, mmss(bip + out), [["En juego", bip, ACENTO, ref(tot?.bip, j)], ["Pelota muerta", out, NEUTRO, ref(tot?.out, j)]]],
+    [abajo, mmss(bip), [["UNI con la pelota", uni, UNI, ref(tot?.uni, q)], ["Rival con la pelota", riv, RIVAL, ref(tot?.riv, q)]]],
+    mmss, frase ? fraseEnJuego(bip, out) : null);
 }
+
+// Por qué "El partido" dura más de 80 minutos (sólo si los pasa).
+export const notaTiempoReal = (ms) => (ms > 80 * 60000
+  ? "El partido es el tiempo real de los dos tiempos, con el reloj parado y sin el entretiempo: por eso dura más de 80 minutos." : null);
 
 // "18:16 de 31:00 · 59%"
 const tde = (a, b) => `${mmss(a)} de ${mmss(b)} · ${pct(a, b)}%`;
 
-// Un partido.
-export function tiempoDeJuego(lz, p) {
+// Avisos de cómo quedó cargado (no de cómo se jugó): un solo tiempo medido, el
+// final sin cerrar, o un tramo tan largo que puede ser un olvido.
+const TRAMO_LARGO = 5 * 60000;
+export function avisosDeCarga(tj) {
+  if (!tj.segmentos) return [];
+  const av = [], un = unTiempo(tj);
+  if (un) av.push(`Sólo está medido el ${un} tiempo: estos números son de ese tiempo, no del partido entero.`);
+  if (tj.abierto) av.push("El último tramo quedó abierto (faltó tocar PAUSA / FIN DEL TIEMPO al terminar) y no se cuenta.");
+  for (const [st, cual] of [[tj.tBip, "pelota en juego"], [tj.tOut, "pelota muerta"]]) {
+    if (st.max > TRAMO_LARGO) {
+      av.push(`Hay un tramo de ${cual} de ${mmss(st.max)}. Si fue un olvido al cargar, se corrige en Uni-Dat (PARTIDOS → TIEMPO DE JUEGO).`);
+    }
+  }
+  return av;
+}
+
+// Un partido. Después de las tarjetas, cada parte es un plegable: en el
+// celular arranca cerrada (pedido del usuario: que no sea un rollo sin fin).
+// t (opcional): su temporada; si tiene 2 partidos o más con tiempo de juego,
+// debajo de cada número va el de la temporada (sin opinar).
+export function tiempoDeJuego(lz, p, t = null) {
   const tj = p.tiempo_juego;
   if (!tj) {
     nota(lz, "Este partido no tiene el tiempo de juego cargado (se carga en Uni-Dat, sección TIEMPO DE JUEGO, o en CARGAR PARTIDO).");
     return;
   }
-  lz.html(lupaJuego(tj.bip, tj.out, tj.uni, tj.riv));
-  const cada = [tramo(tj.tBip, "Pelota en juego, cada tramo", ACENTO, "tramos"),
-    tramo(tj.tOut, "Pelota muerta, cada tramo", NEUTRO, "tramos"),
-    tramo(tj.posUni, "Cada posesión de UNI", UNI, "posesiones"), tramo(tj.posRiv, "Cada posesión del rival", RIVAL, "posesiones")].filter(Boolean);
-  if (cada.length) lz.html(tramos(cada, mmss));
+  const av = avisosDeCarga(tj);
+  if (av.length) lz.html(ojo(av));
+  const conTJ = (t?.partidos ?? []).filter((x) => x.tiempo_juego);
+  lz.html(lupaJuego(tj.bip, tj.out, tj.uni, tj.riv, { frase: true, tot: conTJ.length >= 2 ? totalesJuego(conTJ) : null }));
+  // a mano, la planilla puede no cuadrar: el total de la barra de abajo no es la suma de sus dos partes
+  if (tj.manual && mmss(tj.uni + tj.riv) !== mmss(tj.bip)) {
+    nota(lz, `En la planilla, UNI + Rival da ${mmss(tj.uni + tj.riv)} y el tiempo en juego ${mmss(tj.bip)}: los % de quién tuvo la pelota son sobre UNI + Rival.`);
+  }
+  const cada = [tramo(tj.tBip, VEZ_JUEGO, ACENTO), tramo(tj.tOut, VEZ_PARO, NEUTRO),
+    tramo(tj.posUni, "Cada vez que la tuvo UNI", UNI), tramo(tj.posRiv, "Cada vez que la tuvo el rival", RIVAL)].filter(Boolean);
+  if (cada.length) lz.html(tramos(cada, duracion));
+  const real = notaTiempoReal(tj.bip + tj.out);
+  if (real) nota(lz, real);
   // lo cargado a mano no tiene los tramos: sin cinta, sin duración de cada uno y sin 1° / 2° tiempo
   if (!tj.segmentos) return;
-  lz.titulo("La cinta del partido");
-  nota(lz, "Cada tramo en el orden en que pasó y del largo que duró. Pasá el mouse o tocá un tramo para ver el detalle.");
-  lz.grafico(cintaJuego(tj.segmentos));
-  const cols = lz.columnas(2, "large");
-  cols[0].titulo("¿Cuánto duró cada tramo?");
-  nota(cols[0], "Cada punto es un tramo. Más a la derecha, más duró. La raya blanca es el promedio.");
-  cols[0].grafico(tramosJuego(tj.tBip, tj.tOut));
-  cols[1].titulo("1° vs 2° tiempo");
-  cols[1].grafico(tiemposJuego(tj.PT, tj.ST));
-  cols[1].html(tabla(["", "En juego", "Pelota muerta", "Posesión UNI", "Posesión Rival"],
-    [["1° tiempo", tj.PT], ["2° tiempo", tj.ST]].map(([n, x]) =>
-      [n, mmss(x.bip), mmss(x.out), `${mmss(x.uni)} · ${pct(x.uni, x.bip)}%`, `${mmss(x.riv)} · ${pct(x.riv, x.bip)}%`])));
+  const angosto = lz.angosto;
+  const cinta = lz.plegable("La cinta del partido");
+  nota(cinta, "El partido de principio a fin: cuándo la tuvo UNI, cuándo el rival y cuándo estuvo parada. " +
+    (angosto ? "Cada fila son 15 minutos. Tocá un color para ver cuánto duró." : "Pasá el mouse por un color para ver cuánto duró."));
+  cinta.grafico(cintaJuego(tj.segmentos, angosto ? 15 : null));
+  const mitades = lz.plegable("1° y 2° tiempo");
+  const cols = mitades.columnas(2, "large");
+  [["1° tiempo", tj.PT], ["2° tiempo", tj.ST]].forEach(([n, x], i) => {
+    if (x.bip + x.out) cols[i].html(lupaJuego(x.bip, x.out, x.uni, x.riv, { arriba: n, abajo: `${n}, en juego` }));
+    else nota(cols[i], `El ${n} no está medido.`);
+  });
+  const dur = lz.plegable("¿Cuánto duró cada vez?");
+  nota(dur, "Cuántas veces la pelota estuvo en juego, o parada, cada cantidad de tiempo.");
+  dur.grafico(rangosJuego(tj.tBip, tj.tOut));
 }
 
 // Promedio por tramo de la temporada: TODOS los tramos juntos (tiempo total ÷
 // cantidad de tramos), no el promedio de los promedios (un partido de 20
 // tramos pesaría igual que uno de 60). De lo cargado a mano la cantidad se
 // estima (total ÷ su promedio). Y el tramo más largo, con su partido.
-function tramoTemporada(ps, k, total, titulo, color) {
+export function tramoTemporada(ps, k, total, titulo, color) {
   const con = ps.filter((p) => p.tiempo_juego[k].n);
-  const conMax = ps.filter((p) => p.tiempo_juego[k].max !== null);
+  const conMax = ps.filter((p) => p.tiempo_juego[k].max !== null && p.tiempo_juego[k].n !== 0);
   if (!con.length && !conMax.length) return null;
   const prom = con.length ? con.reduce((a, p) => a + p.tiempo_juego[total], 0) / con.reduce((a, p) => a + p.tiempo_juego[k].n, 0) : null;
   const mayor = conMax.reduce((m, p) => (m && m.tiempo_juego[k].max >= p.tiempo_juego[k].max ? m : p), null);
-  // el más largo de la temporada, con el partido en que pasó
-  return [titulo, prom, mayor ? mayor.tiempo_juego[k].max : null, color, null, mayor ? etiqueta(mayor) : null];
+  // el más largo de la temporada, con el partido en que pasó (al final, el partido: lo usa el informe PDF)
+  return [titulo, prom, mayor ? mayor.tiempo_juego[k].max : null, color, null, mayor ? etiqueta(mayor) : null, mayor];
+}
+
+// El eje de un gráfico de % partido a partido: ajustado a los valores (de 0 a
+// 100 las líneas quedan chatas), de 10 en 10 y con lugar para el número de arriba.
+function rangoPct(valores) {
+  const lo = Math.max(0, Math.floor((Math.min(...valores) - 8) / 10) * 10);
+  const hi = Math.min(100, Math.ceil((Math.max(...valores) + 8) / 10) * 10);
+  return [lo, hi + 4];
 }
 
 // La temporada (o un torneo): sólo los partidos que tienen el tiempo cargado.
@@ -783,25 +867,43 @@ export function tiempoDeJuegoTemporada(lz, t) {
     nota(lz, "Ningún partido de esta temporada tiene el tiempo de juego cargado.");
     return;
   }
-  const tjs = ps.map((p) => p.tiempo_juego), n = ps.length;
-  const suma = (f) => tjs.reduce((a, x) => a + f(x), 0);
-  const bip = suma((x) => x.bip), out = suma((x) => x.out), uni = suma((x) => x.uni), riv = suma((x) => x.riv);
+  // el promedio por partido, sólo con los partidos enteros (totalesJuego)
+  const { base, enteros, n, bip, out, uni, riv } = totalesJuego(ps);
   // promedio por partido (la suma ÷ los partidos): el % es el mismo que el de la temporada entera
-  lz.html(lupaJuego(bip / n, out / n, uni / n, riv / n, ", en promedio"));
-  const cada = [tramoTemporada(ps, "tBip", "bip", "Pelota en juego, cada tramo", ACENTO),
-    tramoTemporada(ps, "tOut", "out", "Pelota muerta, cada tramo", NEUTRO)].filter(Boolean);
-  if (cada.length) lz.html(tramos(cada, mmss));
-  nota(lz, `Promedio de ${n} ${n === 1 ? "partido" : "partidos"}. El promedio por tramo cuenta juntos todos los tramos de la temporada. ` +
-    `${n} de ${t.partidos.length} partidos tienen el tiempo de juego cargado.`);
-  if (n >= 2) {
-    lz.titulo("En juego y posesión, partido a partido");
-    lz.grafico(lineas(ps.map((p) => etiqueta(p, true)), [
-      ["En juego", tjs.map((x) => pct(x.bip, x.bip + x.out)), ACENTO, tjs.map((x) => tde(x.bip, x.bip + x.out))],
-      ["Posesión UNI", tjs.map((x) => pct(x.uni, x.uni + x.riv)), UNI, tjs.map((x) => tde(x.uni, x.uni + x.riv))],
-    ], { alto: 300, porCiento: true, referencias: [[pct(bip, bip + out), "Temporada", ACENTO], [pct(uni, uni + riv), "Temporada", UNI]] }));
-    nota(lz, "En juego: qué parte del partido estuvo la pelota en juego. Posesión UNI: qué parte del tiempo en juego la tuvo UNI. " +
-      "Las líneas punteadas (Temporada) son la temporada entera, cada una de su color. Pasá el dedo o el mouse por un punto para ver los minutos.");
+  lz.html(lupaJuego(bip / n, out / n, uni / n, riv / n,
+    { arriba: "El partido, en promedio", abajo: "El tiempo en juego, en promedio", frase: true }));
+  const cada = [tramoTemporada(ps, "tBip", "bip", VEZ_JUEGO, ACENTO), tramoTemporada(ps, "tOut", "out", VEZ_PARO, NEUTRO)].filter(Boolean);
+  if (cada.length) lz.html(tramos(cada, duracion));
+  const afuera = base === enteros ? ps.filter((p) => unTiempo(p.tiempo_juego)) : [];
+  const real = notaTiempoReal((bip + out) / n);
+  nota(lz, `Promedio de ${n} ${n === 1 ? "partido" : "partidos"}. ${ps.length} de ${t.partidos.length} partidos tienen el tiempo de juego cargado.` +
+    (afuera.length ? ` No ${afuera.length === 1 ? "entra" : "entran"} en el promedio por partido, por tener un solo tiempo medido: ${
+      afuera.map((p) => etiqueta(p, true)).join("; ")}.` : "") + (real ? ` ${real}` : ""));
+
+  const angosto = lz.angosto;
+  const tjs = ps.map((p) => p.tiempo_juego);
+  if (ps.length >= 2) {
+    // en el celular, sólo la fecha en el eje (con el rival los rótulos se inclinan y se comen el gráfico)
+    const x = ps.map((p) => (angosto ? etiqueta(p, true).split(" · ")[0] : etiqueta(p, true).replace(" · ", "<br>")));
+    const ver = angosto ? "Tocá un punto para ver los minutos." : "Pasá el mouse por un punto para ver los minutos.";
+    // (en el celular, uno abajo del otro sin columnas: apiladas dejan un hueco entre los dos desplegables)
+    const cols = angosto ? [lz, lz] : lz.columnas(2, "large");
+    const linea =(col, titulo, nombre, color, a, b, ref, que) => {
+      const ys = tjs.map((tj) => pct(a(tj), b(tj)));
+      const parte = col.plegable(titulo);
+      parte.grafico(lineas(x, [[nombre, ys, color, ps.map((p, i) => tde(a(tjs[i]), b(tjs[i])) + (angosto ? ` · ${p.rival}` : ""))]],
+        { alto: 280, porCiento: true, rango: rangoPct([...ys, ref]), valores: true, referencias: [[ref, "", color]] }));
+      nota(parte, `${que} La línea punteada es la temporada: ${ref}%. ${ver}`);
+    };
+    linea(cols[0], "En juego, partido a partido", "En juego", ACENTO, (tj) => tj.bip, (tj) => tj.bip + tj.out, pct(bip, bip + out),
+      "Qué parte del partido estuvo la pelota en juego.");
+    linea(cols[1], "Posesión de UNI, partido a partido", "Posesión UNI", UNI, (tj) => tj.uni, (tj) => tj.uni + tj.riv, pct(uni, uni + riv),
+      "Qué parte del tiempo en juego tuvo la pelota UNI.");
   }
-  lz.titulo("Cada partido: en juego y pelota muerta");
-  lz.grafico(temporadaJuego(ps.map((p) => etiqueta(p, true)), tjs));
+  const cp = lz.plegable("Cada partido, con sus minutos");
+  cp.html(porPartido(ps.map((p) => {
+    const tj = p.tiempo_juego, un = unTiempo(tj);
+    return [etiqueta(p), un ? `Sólo el ${un} tiempo` : null, [["En juego", tj.bip, ACENTO], ["Pelota muerta", tj.out, NEUTRO]],
+      [["UNI", tj.uni, UNI], ["Rival", tj.riv, RIVAL]]];
+  }), mmss));
 }

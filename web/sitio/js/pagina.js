@@ -162,7 +162,7 @@ export function tablero({ partidos, errorBase = null }) {
     // (las pestañas van debajo del marcador; apagarPestanas(cont) también las apaga)
     const conTJ = !!p.tiempo_juego;
     pestanas(lz.poner(html`<div class="pestanas-partido"></div>`), conTJ ? conTiempoDeJuego(PESTANAS_PARTIDO) : PESTANAS_PARTIDO, seguro((i, panel) => {
-      if (conTJ && i === TJ) return V.tiempoDeJuego(new EnPagina(panel), p);
+      if (conTJ && i === TJ) return V.tiempoDeJuego(new EnPagina(panel), p, t);
       const f = V.SECCIONES_PARTIDO[sinTJ(conTJ, i)]?.[2];
       if (f) f(new EnPagina(panel), p, t, tp);
       else pestanaInforme(panel, t, estado.cat, p);

@@ -64,6 +64,13 @@ export function esc(x) {
   return String(x).replace(/[&<>"']/g, (c) => ESCAPES[c]);
 }
 
+// Milisegundos → [número, unidad] para leer sin pensar: ["41", "seg"] hasta el
+// minuto, después ["2:10", "min"] (y ["1:02:05", "h"]). Mismo redondeo que mmss.
+export function duracion(ms) {
+  const n = Number(ms), s = Number.isFinite(n) ? Math.floor((n + 500) / 1000) : 0;
+  return s < 60 ? [String(s), "seg"] : [mmss(ms), s < 3600 ? "min" : "h"];
+}
+
 // Milisegundos → "1:02" (o "1:02:05" pasada la hora). Tiempo de juego (nov 2026).
 export function mmss(ms) {
   // al segundo más cercano, igual que Uni-Dat (Math.round de JS: 12,5 s → 13)

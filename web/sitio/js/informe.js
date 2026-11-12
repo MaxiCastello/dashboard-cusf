@@ -12,10 +12,11 @@
 //
 // Colores por nombre: "uni", "rival", "acento", "aviso", "mal", "neutro" o null.
 import { etiqueta, resultado, tacklesTemporada, una } from "./calculos.js";
-import { coma, conSigno, fijo, pct, unDecimal, xdey } from "./formato.js";
+import { coma, conSigno, duracion, fijo, mmss, pct, unDecimal, xdey } from "./formato.js";
 import { OBJETIVOS, evaluar, minutosConUnoMenos, temporada as objetivoTemporada } from "./objetivos.js";
 import { capitalizar, conDefecto, esVerdad, mayuscula, str } from "./python.js";
-import { ORIGEN, RESULTADO, colorSituacion, cuantos, desc, hechos, intentos, origenesTries, partesFrasePenales, pateo, pen, porSituacion }
+import { FRASE_EN_JUEGO, ORIGEN, RESULTADO, VEZ_JUEGO, VEZ_PARO, avisosDeCarga, colorSituacion, cuantoEnJuego, cuantos, desc, hechos, intentos,
+  notaTiempoReal, origenesTries, partesFrasePenales, pateo, pen, porSituacion, totalesJuego, tramo, tramoTemporada, unTiempo }
   from "./vistas.js";
 
 
@@ -294,6 +295,89 @@ function tackles(ps, partido = null) {
   return out;
 }
 
+// ── Tiempo de juego (nov 2026): lo mismo que la pestaña ─────────────────────
+
+// La lupa: dos barras (el partido: en juego / pelota muerta; el tiempo en
+// juego: UNI / Rival con la pelota) con los minutos y el % escritos y,
+// arriba, lo principal en palabras. `peso` es el largo de cada parte.
+// tot: los totales de la temporada, para poner debajo "Temporada 34%".
+function lupaJuego(bip, out, uni, riv, { arriba = "El partido", abajo = "El tiempo en juego", frase = true, tot = null } = {}) {
+  const parte = (rotulo, v, suma, color, ta, tb) => ({ rotulo, valor: mmss(v), pct: pct(v, suma), peso: v, color,
+    abajo: tot ? `Temporada ${pct(ta, tb)}%` : null });
+  const j = tot ? tot.bip + tot.out : 0, q = tot ? tot.uni + tot.riv : 0;
+  const cuanto = frase ? cuantoEnJuego(bip, out) : null;
+  return { tipo: "lupa", frase: cuanto === null ? null : `${FRASE_EN_JUEGO} ${cuanto}.`, barras: [
+    { titulo: arriba, total: mmss(bip + out), partes: [parte("En juego", bip, bip + out, "acento", tot?.bip, j),
+      parte("Pelota muerta", out, bip + out, "neutro", tot?.out, j)] },
+    { titulo: abajo, total: mmss(bip), partes: [parte("UNI con la pelota", uni, uni + riv, "uni", tot?.uni, q),
+      parte("Rival con la pelota", riv, uni + riv, "rival", tot?.riv, q)] }] };
+}
+
+// "41 seg", "2:10 min" o "—"
+const cuanto = (ms) => (ms === null ? "—" : duracion(ms).join(" "));
+// "18:20 · 38%"
+const conPct = (a, b) => (b ? `${mmss(a)} · ${pct(a, b)}%` : "—");
+
+// Un partido (vacío si no tiene el tiempo de juego). t: su temporada.
+function tiempoJuegoPartido(p, t) {
+  const tj = p.tiempo_juego;
+  if (!tj) return [];
+  const conTJ = t.partidos.filter((x) => x.tiempo_juego);
+  const out = [seccion("Tiempo de juego"),
+    lupaJuego(tj.bip, tj.out, tj.uni, tj.riv, { tot: conTJ.length >= 2 ? totalesJuego(conTJ) : null })];
+  const notas = [...avisosDeCarga(tj)];
+  if (tj.manual && mmss(tj.uni + tj.riv) !== mmss(tj.bip)) {
+    notas.push(`En la planilla, UNI + Rival da ${mmss(tj.uni + tj.riv)} y el tiempo en juego ${mmss(tj.bip)}: los % de quién tuvo la pelota son sobre UNI + Rival.`);
+  }
+  const real = notaTiempoReal(tj.bip + tj.out);
+  if (real) notas.push(real);
+  if (notas.length) out.push(nota(notas.join(" ")));
+  const cada = [tramo(tj.tBip, VEZ_JUEGO), tramo(tj.tOut, VEZ_PARO), tramo(tj.posUni, "Cada vez que la tuvo UNI"),
+    tramo(tj.posRiv, "Cada vez que la tuvo el rival")].filter(Boolean);
+  if (cada.length) {
+    // la cantidad, sólo si se contó una por una (lo cargado a mano no la tiene)
+    const conVeces = cada.some((c) => c[4]);
+    out.push(tabla([["Cuánto duró", 3, "izq"], ["Promedio", 1.5, "der"], ["La más larga", 1.6, "der"], ...(conVeces ? [["Veces", 1, "der"]] : [])],
+      cada.map(([titulo, prom, max, , veces]) => [titulo, cuanto(prom), cuanto(max), ...(conVeces ? [veces ? veces.split(" ")[0] : "—"] : [])])));
+  }
+  if (tj.segmentos) {
+    const col = (x) => (x.bip + x.out ? [mmss(x.bip + x.out), conPct(x.bip, x.bip + x.out), conPct(x.out, x.bip + x.out),
+      conPct(x.uni, x.uni + x.riv), conPct(x.riv, x.uni + x.riv)] : Array(5).fill("—"));
+    const a = col(tj.PT), b = col(tj.ST);
+    out.push(tabla([["1° y 2° tiempo", 2.6, "izq"], ["1° tiempo", 1.7, "der"], ["2° tiempo", 1.7, "der"]],
+      ["Lo que duró", "En juego", "Pelota muerta", "UNI con la pelota", "Rival con la pelota"].map((r, i) => [r, a[i], b[i]])));
+    out.push(nota("UNI y Rival con la pelota: qué parte del tiempo en juego la tuvo cada uno."));
+  }
+  return out;
+}
+
+// La temporada (vacío si ningún partido tiene el tiempo de juego).
+function tiempoJuegoTemporada(t) {
+  const ps = t.partidos.filter((p) => p.tiempo_juego);
+  if (!ps.length) return [];
+  const { base, enteros, n, bip, out: muerta, uni, riv } = totalesJuego(ps);
+  const out = [seccion("Tiempo de juego"), lupaJuego(bip / n, muerta / n, uni / n, riv / n,
+    { arriba: "El partido, en promedio", abajo: "El tiempo en juego, en promedio" })];
+  const afuera = base === enteros ? ps.filter((p) => unTiempo(p.tiempo_juego)) : [];
+  const real = notaTiempoReal((bip + muerta) / n);
+  out.push(nota(`Promedio de ${n} ${n === 1 ? "partido" : "partidos"}. ${ps.length} de ${t.partidos.length} partidos tienen el tiempo de juego cargado.` +
+    (afuera.length ? ` No ${afuera.length === 1 ? "entra" : "entran"} en el promedio por partido, por tener un solo tiempo medido: ${
+      afuera.map((p) => etiqueta(p, true)).join("; ")}.` : "") + (real ? ` ${real}` : "")));
+  const cada = [tramoTemporada(ps, "tBip", "bip", VEZ_JUEGO), tramoTemporada(ps, "tOut", "out", VEZ_PARO)].filter(Boolean);
+  if (cada.length) {
+    out.push(tabla([["Cuánto duró", 2.4, "izq"], ["Promedio", 1.2, "der"], ["La más larga", 1.4, "der"], ["En qué partido", 2.6, "der"]],
+      cada.map(([titulo, prom, max, , , , mayor]) => [titulo, cuanto(prom), cuanto(max), mayor ? etiqueta(mayor, true) : "—"])));
+  }
+  if (ps.length >= 2) {
+    out.push(tabla([["Partido a partido", 3, "izq"], ["En juego", 2, "der"], ["UNI con la pelota", 2.2, "der"]], ps.map((p) => {
+      const tj = p.tiempo_juego, un = unTiempo(tj);
+      return [etiqueta(p, true) + (un ? ` (sólo ${un} T)` : ""), conPct(tj.bip, tj.bip + tj.out), conPct(tj.uni, tj.uni + tj.riv)];
+    })));
+    out.push(nota("En juego: los minutos con la pelota en juego y qué parte del partido fueron. UNI con la pelota: qué parte de ese tiempo la tuvo UNI."));
+  }
+  return out;
+}
+
 // ── El informe de la temporada ──────────────────────────────────────────────
 
 export function informeTemporada(t, categoria) {
@@ -323,6 +407,7 @@ export function informeTemporada(t, categoria) {
       xdey(p.line.uGan, p.line.uLan), xdey(p.scrum.uGan, p.scrum.uLan), pen(p)])));
     b.push(nota("Resultado: G ganó, E empató, P perdió. Penales: los que cometió UNI."));
   }
+  if (!t.planilla) b.push(...tiempoJuegoTemporada(t));
   b.push(...losPuntos(t), ...formaciones(t), ...penales(t));
   if (!t.planilla) b.push(...tarjetas(t), ...objetivos(t));
   b.push(...tackles(ps));
@@ -367,6 +452,7 @@ export function informePartido(p, t, tp) {
       ["Pateo a los palos", xdey(pa, pb), xdey(ta, tb)], ["Penales cometidos por UNI", pen(p), prom(pen(tot))]]));
     b.push(nota("En puntos y penales, la temporada es el promedio por partido; en el resto, la suma."));
   }
+  b.push(...tiempoJuegoPartido(p, t));
   if (esVerdad(p.periodos)) {
     const a = p.periodos.PT, s = p.periodos.ST;
     const fila = (rotulo, k) => [rotulo, a[`${k}_u`], a[`${k}_r`], s[`${k}_u`], s[`${k}_r`]];

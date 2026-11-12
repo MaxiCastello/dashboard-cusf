@@ -239,13 +239,20 @@ export function piruletas(etiquetas, valores, { color = UNI, alto = null, sufijo
 // series: [[nombre, ys, color, textos del hover | null]]; referencias:
 // [[valor, texto, color]] -> línea punteada (ej. la temporada), como
 // fig.add_hline() de plotly: una forma y su rótulo.
-export function lineas(x, series, { alto = 300, porCiento = false, referencias = [] } = {}) {
+export function lineas(x, series, { alto = 300, porCiento = false, referencias = [], rango = null, valores = false } = {}) {
   const data = series.map(([nombre, ys, color, hov]) => ({
     // `hov or ys` de Python: sin textos (o una lista vacía), los valores
     connectgaps: true, customdata: hov?.length ? hov : ys, hovertemplate: "%{x}<br>" + nombre + ": %{customdata}<extra></extra>",
     line: { color, width: 3 }, marker: { color, line: { color: "#0a0c0f", width: 2 }, size: 9 },
     mode: "lines+markers", name: nombre, x, y: ys, type: "scatter",
   }));
+  // valores (nov 2026): el número escrito arriba de cada punto (en el celular no hay cursor)
+  if (valores) {
+    for (const d of data) {
+      Object.assign(d, { cliponaxis: false, mode: "lines+markers+text", text: d.y.map((y) => (porCiento ? `${y}%` : str(y))),
+        textfont: { color: TEXTO, size: 12 }, textposition: "top center" });
+    }
+  }
   const layout = {};
   // el rótulo de la primera referencia a la izquierda y el de la segunda a la
   // derecha: si las dos líneas quedan cerca, los textos no se pisan
@@ -256,12 +263,13 @@ export function lineas(x, series, { alto = 300, porCiento = false, referencias =
       line: { color, dash: "dot", width: 1.5 }, opacity: 0.7, type: "line",
       x0: 0, x1: 1, xref: "x domain", y0: valor, y1: valor, yref: "y",
     });
+    if (!txt) return;   // sin rótulo: sólo la línea (lo explica la nota de abajo)
     (layout.annotations ??= []).push({
       font: { color, size: 11 }, showarrow: false, text: txt, x: lado === "left" ? 0 : 1, xanchor: lado,
       xref: "x domain", y: valor, yanchor: "bottom", yref: "y",
     });
   });
-  if (porCiento) layout.yaxis = { range: [0, 108], ticksuffix: "%" };
+  if (porCiento) layout.yaxis = { range: rango ?? [0, 108], ticksuffix: "%" };
   Object.assign(layout, { xaxis: { showgrid: false }, legend: { y: 1.02, yanchor: "bottom", x: 0 }, margin: { t: 34 } });
   return grafico({ data, layout }, alto);
 }
@@ -424,68 +432,62 @@ export function marcadorEnElPartido(evol, alto = 320) {
 // Los colores: UNI y Rival los de siempre, la pelota muerta gris (NEUTRO) y
 // el tiempo en juego en general, azul (ACENTO).
 const TJ_TRAMOS = [["UNI", "UNI con la pelota", UNI, 0.62], ["RIVAL", "Rival con la pelota", RIVAL, 0.62], ["OUT", "Pelota muerta", NEUTRO, 0.16]];
-const TJ_EJE_TIEMPOS = { categoryorder: "array", categoryarray: ["2°T", "1°T"], showgrid: false,
+const TJ_EJE_TIEMPOS = { categoryorder: "array", showgrid: false,
   tickfont: { color: TEXTO, size: 15, family: BEBAS } };
 // traceorder normal: en las barras apiladas Plotly da vuelta la leyenda (quedaría Pelota muerta primero)
 const tjLeyenda = { orientation: "h", traceorder: "normal", y: 1.02, yanchor: "bottom", x: 0 };
 
 // La cinta del partido: cada tramo en orden y del largo que duró, una fila
 // por tiempo (sin contar las pausas). La pelota muerta es una franja finita.
-export function cintaJuego(segmentos, alto = 210) {
-  const data = TJ_TRAMOS.map(([e, nombre, color, ancho]) => {
-    const ss = segmentos.filter((s) => s.e === e);
-    return { base: ss.map((s) => s.desde / 60000), customdata: ss.map((s) => [mmss(s.d), mmss(s.desde)]),
-      hovertemplate: `<b>${nombre}</b><br>Duró %{customdata[0]}<br>Desde el %{customdata[1]}<extra></extra>`,
-      marker: { color }, name: nombre, orientation: "h", type: "bar", width: ancho,
-      x: ss.map((s) => s.d / 60000), y: ss.map((s) => (s.p === "PT" ? "1°T" : "2°T")) };
-  });
-  const layout = { barmode: "overlay", bargap: 0.2, legend: tjLeyenda, margin: { t: 34 },
-    xaxis: { dtick: 10, rangemode: "tozero", ticksuffix: "'", title: { text: "Minutos (sin contar pausas)" } },
-    yaxis: TJ_EJE_TIEMPOS };
-  return grafico({ data, layout }, alto);
-}
-
-// ¿Cuánto duró cada tramo?: un punto por tramo (en juego arriba, pelota
-// muerta abajo); la raya blanca es el promedio.
-export function tramosJuego(tBip, tOut, alto = 250) {
-  const filas = [["En juego", tBip, ACENTO, 1], ["Pelota muerta", tOut, NEUTRO, 0]];
-  const data = [];
-  for (const [nombre, st, color, y] of filas) {
-    // un corrimiento vertical fijo (no al azar): el mismo partido se ve siempre igual
-    data.push({ customdata: st.lista.map(mmss), hovertemplate: `<b>${nombre}</b><br>Duró %{customdata}<extra></extra>`,
-      marker: { color, line: { color: "#0a0c0f", width: 1 }, opacity: 0.9, size: 8 }, mode: "markers", name: nombre,
-      type: "scatter", x: st.lista.map((d) => d / 1000), y: st.lista.map((_, k) => y + ((((k + 1) * 0.6180339) % 1) - 0.5) * 0.5) });
-    if (st.n) {
-      data.push({ hovertemplate: `<b>Promedio ${nombre.toLowerCase()}</b><br>${mmss(st.prom)}<extra></extra>`,
-        marker: { line: { color: TEXTO, width: 2.5 }, size: 42, symbol: "line-ns" }, mode: "markers", showlegend: false,
-        type: "scatter", x: [st.prom / 1000], y: [y] });
+// cada: en el celular una fila entera no se lee (45 minutos en 250 px); con
+// `cada` minutos por fila, cada tiempo va en varias filas ("1°T 15'" = la que
+// arranca a los 15 minutos) y un tramo que cruza de fila se parte en dos.
+const TJ_TIEMPO = { PT: "1°T", ST: "2°T" };
+export function cintaJuego(segmentos, cada = null) {
+  const paso = cada ? cada * 60000 : Infinity;
+  const nombreFila = (p, fila) => (cada ? `${TJ_TIEMPO[p]} ${fila * cada}'` : TJ_TIEMPO[p]);
+  const pedazos = [], filas = { PT: 1, ST: 1 };
+  for (const s of segmentos) {
+    const fin = s.desde + s.d;
+    for (let a = s.desde; a < fin;) {
+      const fila = cada ? Math.floor(a / paso) : 0, b = Math.min(fin, (fila + 1) * paso);
+      pedazos.push({ s, y: nombreFila(s.p, fila), base: (a - (cada ? fila * paso : 0)) / 60000, x: (b - a) / 60000 });
+      filas[s.p] = Math.max(filas[s.p], fila + 1);
+      a = b;
     }
   }
-  const tope = Math.ceil(Math.max(tBip.max, tOut.max, 30000) / 30000) * 30;
-  const marcas = Array.from({ length: tope / 30 + 1 }, (_, i) => i * 30);
-  const layout = { showlegend: false,
-    xaxis: { range: [-3, tope + 3], ticktext: marcas.map((s) => mmss(s * 1000)), tickvals: marcas, title: { text: "Duración del tramo" } },
-    yaxis: { range: [-0.6, 1.6], showgrid: false, ticktext: ["En juego", "Pelota muerta"], tickvals: [1, 0], zeroline: false } };
-  return grafico({ data, layout }, alto);
+  // de abajo para arriba (así las lee Plotly): el 1°T queda arriba
+  const orden = ["PT", "ST"].flatMap((p) => Array.from({ length: filas[p] }, (_, f) => nombreFila(p, f))).reverse();
+  const data = TJ_TRAMOS.map(([e, nombre, color, ancho]) => {
+    const ps = pedazos.filter((x) => x.s.e === e);
+    return { base: ps.map((x) => x.base), customdata: ps.map((x) => [mmss(x.s.d), mmss(x.s.desde)]),
+      hovertemplate: `<b>${nombre}</b><br>Duró %{customdata[0]}<br>Desde el %{customdata[1]}<extra></extra>`,
+      marker: { color }, name: nombre, orientation: "h", type: "bar", width: ancho,
+      x: ps.map((x) => x.x), y: ps.map((x) => x.y) };
+  });
+  const layout = { barmode: "overlay", bargap: 0.2, legend: tjLeyenda, margin: { t: 34 },
+    xaxis: cada ? { dtick: 5, range: [0, cada], tickprefix: "+", ticksuffix: "'", title: { text: "Minutos desde el principio de la fila" } }
+      : { dtick: 10, rangemode: "tozero", ticksuffix: "'", title: { text: "Minutos (sin contar pausas)" } },
+    yaxis: { ...TJ_EJE_TIEMPOS, categoryarray: orden, tickfont: { ...TJ_EJE_TIEMPOS.tickfont, size: cada ? 13 : 15 } } };
+  return grafico({ data, layout }, cada ? 110 + 30 * orden.length : 210);
 }
 
-// 1° vs 2° tiempo: una barra por tiempo, partida en UNI / Rival / pelota muerta.
-export function tiemposJuego(pt, st, alto = 190) {
-  const data = [["uni", "UNI con la pelota", UNI], ["riv", "Rival con la pelota", RIVAL], ["out", "Pelota muerta", NEUTRO]].map(([k, nombre, color]) => ({
-    customdata: [mmss(pt[k]), mmss(st[k])], hovertemplate: `<b>${nombre}</b><br>%{y}: %{customdata}<extra></extra>`,
-    marker: { color }, name: nombre, orientation: "h", type: "bar", x: [pt[k] / 60000, st[k] / 60000], y: ["1°T", "2°T"] }));
-  const layout = { barmode: "stack", legend: tjLeyenda, margin: { t: 34 },
-    xaxis: { ticksuffix: "'", title: { text: "Minutos" } }, yaxis: TJ_EJE_TIEMPOS };
+// ¿Cuánto duró cada vez?: cuántas hubo de cada duración (en juego y
+// pelota muerta), con la cantidad escrita arriba de cada barra.
+const TJ_RANGOS = [[15, "Menos de<br>15 s"], [30, "15 a<br>30 s"], [60, "30 s a<br>1 min"], [120, "1 a<br>2 min"], [Infinity, "Más de<br>2 min"]];
+export function rangosJuego(tBip, tOut, alto = 290) {
+  const rotulos = TJ_RANGOS.map(([, r]) => r);
+  const cuenta = (lista) => TJ_RANGOS.map(([tope], i) => {
+    const desde = i ? TJ_RANGOS[i - 1][0] : 0;
+    return lista.filter((d) => d / 1000 >= desde && d / 1000 < tope).length;
+  });
+  const data = [["Pelota en juego", tBip, ACENTO], ["Pelota muerta", tOut, NEUTRO]].map(([nombre, st, color]) => {
+    const n = cuenta(st.lista);
+    return { cliponaxis: false, customdata: rotulos.map((r) => r.replace("<br>", " ")),
+      hovertemplate: `<b>${nombre}</b><br>%{customdata}: %{y} veces<extra></extra>`, marker: { color }, name: nombre,
+      text: n.map(String), textfont: { color: TEXTO }, textposition: "outside", type: "bar", x: rotulos, y: n };
+  });
+  const layout = { barmode: "group", legend: tjLeyenda, margin: { t: 34 }, xaxis: { showgrid: false, tickangle: 0 },
+    yaxis: { rangemode: "tozero", title: { text: "Cantidad de veces" } } };
   return grafico({ data, layout }, alto);
-}
-
-// La temporada: una barra por partido (sin entretiempo) partida en UNI / Rival
-// con la pelota y pelota muerta.
-export function temporadaJuego(etiquetas, tjs, alto = null) {
-  const data = [["uni", "UNI con la pelota", UNI], ["riv", "Rival con la pelota", RIVAL], ["out", "Pelota muerta", NEUTRO]].map(([k, nombre, color]) => ({
-    customdata: tjs.map((t) => mmss(t[k])), hovertemplate: `<b>%{y}</b><br>${nombre}: %{customdata}<extra></extra>`,
-    marker: { color }, name: nombre, orientation: "h", type: "bar", x: tjs.map((t) => t[k] / 60000), y: etiquetas }));
-  const layout = { barmode: "stack", legend: tjLeyenda, margin: { t: 34 },
-    xaxis: { ticksuffix: "'", title: { text: "Minutos (sin entretiempo)" } }, yaxis: { autorange: "reversed", showgrid: false } };
-  return grafico({ data, layout }, alto || 90 + 40 * etiquetas.length);
 }

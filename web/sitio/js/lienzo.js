@@ -73,6 +73,20 @@ export class Registro {
     this.anotar({ f: "expander", args: [rotulo], key: null, type: null });
     return this.hijo();
   }
+
+  // (no está en el Python) Una parte con su título. En el celular es un
+  // desplegable cerrado, para que la pestaña no sea un rollo sin fin; en una
+  // pantalla ancha, el título y abajo lo suyo. Devuelve dónde dibujarla.
+  plegable(rotulo) {
+    if (this.angosto) return this.desplegable(rotulo);
+    this.titulo(rotulo);
+    return this;
+  }
+
+  // ¿pantalla de celular? Sin página (las pruebas), no.
+  get angosto() {
+    return false;
+  }
 }
 
 const pesosDe = (spec) => (typeof spec === "number" ? Array(spec).fill(1) : spec);
@@ -182,6 +196,11 @@ export class EnPagina extends Registro {
     super.tablaDatos(columnas, filas, alto, config);
     const div = this.poner(html`<div class="datos"></div>`);
     tablaDatos(div, columnas, filas, alto, config);
+  }
+
+  // el mismo corte que el CSS del celular (tablero.css: max-width 640px)
+  get angosto() {
+    return window.matchMedia("(max-width: 640px)").matches;
   }
 
   // st.expander(rotulo): cerrado al empezar, como en Streamlit

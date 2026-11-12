@@ -257,20 +257,38 @@ table.objetivos td.sd { color:var(--apagado); font-size:.75rem; }
 .lupa .ll i { width:10px; height:10px; border-radius:3px; flex:none; }
 .lupa .ll .v { font-family:'Bebas Neue',sans-serif; font-size:1.7rem; line-height:1.05; letter-spacing:.5px; }
 .lupa .ll small { font-family:'DM Mono',monospace; font-size:.75rem; color:var(--apagado); margin-left:6px; letter-spacing:0; }
+.lupa .ll .t { font-size:.72rem; color:var(--apagado); margin-top:2px; }
+.lupa .lf { font-family:var(--st); font-size:1.05rem; line-height:1.4; color:var(--texto); margin:0 0 12px; }
+.lupa .lf b { font-weight:600; color:#6ea8ff; white-space:nowrap; }
 .lupa .lz { height:22px; margin:6px 0 8px; background:linear-gradient(rgba(26,111,212,.55),rgba(26,111,212,.14)); }
 .tramos { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:10px; margin:4px 0 14px; }
 .tramos .tr { background:var(--sup); border:1px solid var(--borde); border-radius:12px; padding:12px 16px 14px; }
 .tramos .tt { display:flex; justify-content:space-between; align-items:baseline; gap:8px;
   font-family:'DM Mono',monospace; font-size:.68rem; letter-spacing:1.5px; text-transform:uppercase; color:var(--apagado); }
-.tramos .tt small { letter-spacing:.5px; text-transform:none; font-size:.7rem; }
+.tramos .tt small { letter-spacing:.5px; text-transform:none; font-size:.7rem; white-space:nowrap; }
+.tramos .tt span { display:flex; align-items:center; gap:7px; }
+.tramos .tt i { width:10px; height:10px; border-radius:3px; flex:none; }
 .tramos .tv { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px; }
 .tramos .tv > div { display:flex; flex-direction:column; }
 .tramos .tv > div:last-child { text-align:right; align-items:flex-end; }
 .tramos .tv span { font-size:.78rem; color:var(--apagado); }
 .tramos .tv b { font-family:'Bebas Neue',sans-serif; font-weight:400; font-size:2.3rem; line-height:1; letter-spacing:.5px; margin-top:2px; }
 .tramos .tv small { font-size:.72rem; color:var(--apagado); margin-top:2px; }
-.tramos .rg { height:8px; border-radius:4px; background:var(--sup2); margin-top:12px; overflow:hidden; }
-.tramos .rg div { height:100%; border-radius:4px; }
+.tramos .tv b small { font-family:var(--st); font-size:.85rem; letter-spacing:0; margin:0 0 0 5px; }
+.tramos.c4 { grid-template-columns:repeat(2,1fr); }
+/* cada partido de la temporada, en dos renglones con los minutos escritos */
+.porpartido { display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:10px; margin:4px 0 14px; }
+.porpartido .pp { background:var(--sup); border:1px solid var(--borde); border-radius:12px; padding:12px 16px 14px; min-width:0; }
+.porpartido .pt { display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap;
+  font-family:'Bebas Neue',sans-serif; font-size:1.15rem; letter-spacing:1px; }
+.porpartido .pt small { font-family:var(--st); font-size:.72rem; letter-spacing:0; color:rgb(255,255,194); }
+.porpartido .pr { margin-top:10px; }
+.porpartido .px { display:flex; justify-content:space-between; gap:10px; font-family:'DM Mono',monospace; font-size:.82rem; }
+.porpartido .px span:last-child { text-align:right; }
+.porpartido .px em { font-style:normal; font-family:var(--st); font-size:.75rem; color:var(--apagado); }
+.porpartido .px small { font-size:.72rem; color:var(--apagado); }
+.porpartido .pb { display:flex; gap:2px; height:10px; border-radius:5px; overflow:hidden; margin-top:4px; background:var(--sup2); }
+.porpartido .pb div { min-width:0; }
 .anillos { display:grid; grid-template-columns:repeat(auto-fit,minmax(132px,1fr)); gap:10px; margin:4px 0 14px; }
 .anillo { background:var(--sup); border:1px solid var(--borde); border-radius:12px; padding:14px 8px 12px; text-align:center; }
 .anillo .r { width:104px; height:104px; margin:0 auto; border-radius:50%; position:relative;
@@ -314,6 +332,8 @@ table.t th:first-child, table.t td:first-child { text-align:left; font-family:'D
   .kpis, .kpis:has(> .kpi:nth-child(6)) { grid-template-columns:repeat(2,1fr); }
   .kpi .v { font-size:1.9rem; } .marcador .n { font-size:2.6rem; }
   .anillos { grid-template-columns:repeat(2,1fr) !important; }
+  .tramos.c4, .porpartido { grid-template-columns:1fr; }
+  .porpartido .px { font-size:.78rem; }
 }
 
 /* ── Cargar partido: formularios (st.form, st.text_input, st.number_input,

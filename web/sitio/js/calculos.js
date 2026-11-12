@@ -228,7 +228,8 @@ function cuentasTiempos(segs) {
   return r;
 }
 // El tiempo de juego de un partido, o null si no tiene. El último tramo, si
-// quedó abierto (sin PAUSA al final), no se cuenta: no se sabe cuándo terminó.
+// quedó abierto (sin PAUSA al final), no se cuenta: no se sabe cuándo terminó
+// (y `abierto` lo dice).
 // segmentos: cada tramo en orden, con su duración (d) y desde qué momento del
 // tiempo empezó (desde), sin contar las pausas.
 export function tiempoJuego(x) {
@@ -248,8 +249,9 @@ export function tiempoJuego(x) {
     trasPausa = false;
   }
   if (!segs.length) return null;
+  // abierto: faltó la PAUSA del final, así que el último tramo no se contó (la pestaña lo avisa)
   return { ...cuentasTiempos(segs), PT: cuentasTiempos(segs.filter((s) => s.p === "PT")),
-    ST: cuentasTiempos(segs.filter((s) => s.p === "ST")), segmentos: segs };
+    ST: cuentasTiempos(segs.filter((s) => s.p === "ST")), segmentos: segs, abierto: m.at(-1).e !== "PAUSA" };
 }
 
 // ── Tiempo de juego cargado a mano (CARGAR PARTIDO, nov 2026) ────────────────

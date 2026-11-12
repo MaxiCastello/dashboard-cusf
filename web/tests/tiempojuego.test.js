@@ -7,9 +7,13 @@ import { test } from "node:test";
 import { limpiarTiempos, partidosBase, temporada, tiempoJuego, tiempoJuegoManual, tiempoManualValido } from "../sitio/js/calculos.js";
 import { armarComplemento, armarPartido, armarTiempo, segundos, tiempoUnidat, valoresComplemento, valoresPartido, valoresTiempo }
   from "../sitio/js/carga.js";
-import { mmss } from "../sitio/js/formato.js";
+import { duracion, mmss } from "../sitio/js/formato.js";
 import { Registro } from "../sitio/js/lienzo.js";
-import { kpis, anillos } from "../sitio/js/piezas.js";
+import { cintaJuego, rangosJuego } from "../sitio/js/graficos.js";
+import { informe } from "../sitio/js/informe.js";
+import { armarPdf } from "../sitio/js/pdf.js";
+import { jsPDF } from "./_informe_pdf.js";
+import { kpis, anillos, porPartido } from "../sitio/js/piezas.js";
 import { tiempoDeJuego, tiempoDeJuegoTemporada } from "../sitio/js/vistas.js";
 
 const T0 = 1.7e12;
@@ -85,15 +89,155 @@ test("las pestañas se dibujan (partido y temporada) y sin datos avisan", () => 
   const lz = new Registro();
   tiempoDeJuego(lz, ps[1]);
   const fs = lz.llamadas.filter((l) => l.f === "plotly_chart");
-  assert.equal(fs.length, 3);
+  assert.equal(fs.length, 2);   // la cinta y cuánto duraron los tramos (1° y 2° tiempo son dos lupas, sin gráfico)
   const vacio = new Registro();
   tiempoDeJuego(vacio, ps[0]);
   assert.equal(vacio.llamadas.filter((l) => l.f === "plotly_chart").length, 0);
   const t = temporada(ps, 2026, "Primera");
   const lt = new Registro();
   tiempoDeJuegoTemporada(lt, t);
-  assert.equal(lt.llamadas.filter((l) => l.f === "plotly_chart").length, 1);
-  assert.ok(JSON.stringify(lt.llamadas).includes("1 de 2 partidos tienen el tiempo de juego cargado."));
+  assert.equal(lt.llamadas.filter((l) => l.f === "plotly_chart").length, 0);   // con un solo partido no hay "partido a partido"
+  const txt = JSON.stringify(lt.llamadas);
+  assert.ok(txt.includes("1 de 2 partidos tienen el tiempo de juego cargado."));
+  assert.ok(txt.includes("Cada partido, con sus minutos") && txt.includes("porpartido"));
+});
+
+// ── Lo de nov 2026 (2ª vuelta): avisos de carga, la cinta en filas, los rangos ──
+const ENTERO = marcas([0, "UNI"], [20, "OUT"], [50, "RIVAL"], [60, "PAUSA"], [900, "UNI", "ST"], [940, "OUT", "ST"], [1000, "PAUSA", "ST"]);
+const dibujo = (f, ...a) => {
+  const lz = new Registro();
+  f(lz, ...a);
+  return [JSON.stringify(lz.llamadas), lz.llamadas];
+};
+
+test("un partido entero y bien cerrado no tiene avisos; las partes de abajo están todas", () => {
+  const [p] = partidosBase([fila("a", ENTERO)], []);
+  assert.equal(p.tiempo_juego.abierto, false);
+  const [txt] = dibujo(tiempoDeJuego, p);
+  assert.ok(!txt.includes("aviso ojo"));
+  for (const t of ["### La cinta del partido", "### 1° y 2° tiempo", "### ¿Cuánto duró cada vez?", "1° tiempo, en juego", "2° tiempo, en juego"]) assert.ok(txt.includes(t), t);
+  // sin jerga a la vista: nada de "tramo" en lo que lee el que mira (los avisos de carga son para el que carga)
+  assert.ok(!/tramo/i.test(txt.replace(/<[^>]*>/g, "")));   // (sin las etiquetas: la clase de CSS se llama "tramos")
+});
+
+test("lo principal en palabras: de cada 10 minutos, cuántos se jugó (al medio minuto)", () => {
+  const frase = (bip, out) => {
+    const [p] = partidosBase([fila("a", marcas([0, "UNI"], [bip, "OUT"], [bip + out, "PAUSA"]))], []);
+    return /De cada 10 minutos, la pelota estuvo en juego <b>([^<]+)<\/b>\./.exec(dibujo(tiempoDeJuego, p)[0].replaceAll("\\", ""))?.[1];
+  };
+  assert.deepEqual([[35, 65], [30, 70], [50, 50], [5, 95], [1, 99], [99, 1], [34, 66], [33, 67]].map(([a, b]) => frase(a, b)),
+    ["3 y medio", "3", "5", "medio", "0", "10", "3 y medio", "3 y medio"]);
+});
+
+test("cuánto duró cada vez: segundos hasta el minuto, después minutos; el número grande y la unidad chica", () => {
+  assert.deepEqual([0, 26000, 59499, 59500, 130000, 3725000, null].map(duracion),
+    [["0", "seg"], ["26", "seg"], ["59", "seg"], ["1:00", "min"], ["2:10", "min"], ["1:02:05", "h"], ["0", "seg"]]);
+  const [p] = partidosBase([fila("a", ENTERO)], []);
+  const txt = dibujo(tiempoDeJuego, p)[0].replaceAll("\\", "");
+  // ENTERO: se jugó 20, 10 y 40 s (promedio 23, la más larga 40); se paró 30 y 60 s
+  assert.ok(txt.includes('Cada vez que se jugó</span><small>3 veces</small>'));
+  assert.ok(txt.includes("<span>Promedio</span><b>23<small>seg</small></b>") && txt.includes("<span>La más larga</span><b>40<small>seg</small></b>"));
+  assert.ok(txt.includes("<b>1:00<small>min</small></b>"));
+  assert.ok(txt.includes("Cada vez que la tuvo UNI") && txt.includes("Cada vez que la tuvo el rival</span><small>1 vez</small>"));
+  assert.ok(!txt.includes('class="rg"'), "sin la barrita que necesitaba explicación");
+});
+
+test("un partido al lado de la temporada: debajo de cada número, el % de la temporada (si hay 2 o más con tiempo)", () => {
+  const otro = { ...fila("b", marcas([0, "UNI"], [60, "OUT"], [100, "PAUSA"], [900, "RIVAL", "ST"], [940, "PAUSA", "ST"])), fecha: "2026-11-08" };
+  const ps = partidosBase([fila("a", ENTERO), otro], []);
+  const t = temporada(ps, 2026, "Primera");
+  const txt = dibujo(tiempoDeJuego, ps[0], t)[0];
+  // temporada: en juego 70 + 100 de 160 + 140 = 57%; UNI 60 + 60 de 170 = 71%
+  for (const r of ["Temporada 57%", "Temporada 43%", "Temporada 71%", "Temporada 29%"]) assert.ok(txt.includes(`<span class=\\"t\\">${r}</span>`), r);
+  // sin temporada, o con un solo partido con tiempo, no hay con qué comparar
+  assert.ok(!dibujo(tiempoDeJuego, ps[0])[0].includes("Temporada"));
+  assert.ok(!dibujo(tiempoDeJuego, ps[0], temporada([ps[0]], 2026, "Primera"))[0].includes("Temporada"));
+  // los dos tiempos por separado no llevan la referencia ni la frase (una sola vez, arriba)
+  assert.equal(txt.split("De cada 10 minutos").length, 2);
+  assert.equal(txt.split("Temporada ").length, 5);
+});
+
+test("el partido dura más de 80 minutos: se explica (y si no los pasa, no)", () => {
+  const largo = marcas([0, "UNI"], [1500, "OUT"], [2700, "PAUSA"], [3600, "RIVAL", "ST"], [5000, "OUT", "ST"], [6000, "PAUSA", "ST"]);
+  const [p, q] = partidosBase([fila("a", largo), fila("b", ENTERO)], []);
+  assert.ok(dibujo(tiempoDeJuego, p)[0].includes("por eso dura más de 80 minutos"));
+  assert.ok(!dibujo(tiempoDeJuego, q)[0].includes("80 minutos"));
+});
+
+test("avisos de carga: un solo tiempo, el final sin cerrar y un tramo larguísimo", () => {
+  // sólo el 1° tiempo, y faltó la PAUSA del final (el último RIVAL no se cuenta)
+  const [p] = partidosBase([fila("a", marcas([0, "UNI"], [30, "OUT"], [60, "RIVAL"]))], []);
+  assert.equal(p.tiempo_juego.abierto, true);
+  const [txt] = dibujo(tiempoDeJuego, p);
+  assert.ok(txt.includes("Sólo está medido el 1° tiempo"));
+  assert.ok(txt.includes("El último tramo quedó abierto"));
+  assert.ok(txt.includes("El 2° tiempo no está medido."));
+  // nunca tuvo la pelota el rival: sin tarjeta en 0:00
+  assert.ok(txt.includes("Cada vez que la tuvo UNI") && !txt.includes("Cada vez que la tuvo el rival"));
+  // 12 minutos de pelota muerta en el medio: puede ser un olvido
+  const [q] = partidosBase([fila("b", marcas([0, "UNI"], [30, "OUT"], [750, "UNI"], [800, "PAUSA"], [900, "UNI", "ST"], [950, "PAUSA", "ST"]))], []);
+  const [tq] = dibujo(tiempoDeJuego, q);
+  assert.ok(tq.includes("Hay un tramo de pelota muerta de 12:00"));
+  assert.ok(!tq.includes("Sólo está medido") && !tq.includes("quedó abierto"));
+});
+
+test("temporada: un partido con un solo tiempo no baja el promedio por partido (y se dice cuál quedó afuera)", () => {
+  const soloPT = { ...fila("b", marcas([0, "UNI"], [30, "OUT"], [60, "PAUSA"])), rival: "Mitad", fecha: "2026-11-08" };
+  const ps = partidosBase([fila("a", ENTERO), soloPT], []);
+  const [txt, llamadas] = dibujo(tiempoDeJuegoTemporada, temporada(ps, 2026, "Primera"));
+  // el entero: 70 s en juego + 90 s de pelota muerta = 2:40 (con el otro promediado daría 1:50)
+  assert.ok(txt.includes("<b>2:40</b>") && !txt.includes("<b>1:50</b>"));
+  assert.ok(txt.includes("Promedio de 1 partido."));
+  assert.ok(txt.includes("No entra en el promedio por partido, por tener un solo tiempo medido: 8 nov · Mitad."));
+  assert.ok(txt.includes("Sólo el 1° tiempo"));
+  // dos gráficos de un solo % cada uno, con el eje ajustado y el número arriba de cada punto
+  const fs = llamadas.filter((l) => l.f === "plotly_chart").map((l) => l.fig);
+  assert.deepEqual(fs.map((f) => f.data.map((d) => d.name)), [["En juego"], ["Posesión UNI"]]);
+  assert.deepEqual(fs[0].data[0].text, ["44%", "50%"]);
+  assert.deepEqual(fs[0].layout.yaxis.range, [30, 64]);
+  assert.equal(fs[0].layout.annotations, undefined);   // la línea de la temporada, sin rótulo que pise los puntos
+  assert.equal(fs[0].layout.shapes.length, 1);
+});
+
+test("a mano: si UNI + Rival no da el tiempo en juego, la pestaña lo dice", () => {
+  const [p] = partidosBase([], [manual("m0", PLANILLA)]);
+  assert.ok(dibujo(tiempoDeJuego, p)[0].includes("En la planilla, UNI + Rival da 31:00 y el tiempo en juego 30:10"));
+  const [q] = partidosBase([], [manual("m1", { ...PLANILLA, uni: 1046 })]);
+  assert.ok(!dibujo(tiempoDeJuego, q)[0].includes("En la planilla"));
+});
+
+test("la cinta en el celular: filas de 15 minutos, y un tramo que cruza de fila se parte sin perder nada", () => {
+  // 1°T: UNI 14 min, OUT 2 min (cruza el minuto 15), RIVAL 20 min (cruza el 30)
+  const tj = tiempoJuego(marcas([0, "UNI"], [840, "OUT"], [960, "RIVAL"], [2160, "PAUSA"], [3000, "UNI", "ST"], [3060, "PAUSA", "ST"]));
+  const ancha = cintaJuego(tj.segmentos);
+  assert.deepEqual(ancha.layout.yaxis.categoryarray, ["2°T", "1°T"]);
+  assert.deepEqual(ancha.data.map((d) => d.x.length), [2, 1, 1]);
+  const fig = cintaJuego(tj.segmentos, 15);
+  assert.deepEqual(fig.layout.yaxis.categoryarray, ["2°T 0'", "1°T 30'", "1°T 15'", "1°T 0'"]);
+  const [uni, riv, out] = fig.data;
+  assert.deepEqual([uni.y, uni.base, uni.x], [["1°T 0'", "2°T 0'"], [0, 0], [14, 1]]);
+  assert.deepEqual([out.y, out.base, out.x], [["1°T 0'", "1°T 15'"], [14, 0], [1, 1]]);
+  assert.deepEqual([riv.y, riv.base, riv.x], [["1°T 15'", "1°T 30'"], [1, 0], [14, 6]]);
+  // cada pedazo dice cuánto duró el tramo entero
+  assert.deepEqual(riv.customdata, [["20:00", "16:00"], ["20:00", "16:00"]]);
+  const total = fig.data.flatMap((d) => d.x).reduce((a, b) => a + b, 0);
+  assert.equal(total, (tj.bip + tj.out) / 60000);
+});
+
+test("cuánto duraron los tramos: cada tramo cae en un solo rango (el borde, en el de arriba)", () => {
+  const st = (...seg) => ({ lista: seg.map((s) => s * 1000) });
+  const fig = rangosJuego(st(0.5, 14.999, 15, 29, 30, 59, 60, 119, 120, 600), st(15));
+  assert.deepEqual(fig.data.map((d) => d.y), [[2, 2, 2, 2, 2], [0, 1, 0, 0, 0]]);
+  assert.deepEqual(fig.data[0].text, ["2", "2", "2", "2", "2"]);
+  assert.deepEqual(fig.data.map((d) => d.name), ["Pelota en juego", "Pelota muerta"]);
+});
+
+test("cada partido de la temporada: los minutos escritos y todo escapado", () => {
+  const h = String(porPartido([['<b>x</b>', "Sólo el 1° tiempo", [["En juego", 60000, "#1a6fd4"], ["Pelota muerta", 180000, "#6b7280"]],
+    [["UNI", 45000, "#00c853"], ["Rival", 15000, "#ff9800"]]]], mmss));
+  assert.ok(h.includes("&lt;b&gt;x&lt;/b&gt;") && !h.includes("<b>x</b>"));
+  assert.ok(h.includes("<em>En juego</em> 1:00 <small>25%</small>") && h.includes("<em>Rival</em> 0:15 <small>25%</small>"));
+  assert.ok(h.includes("<small>Sólo el 1° tiempo</small>"));
 });
 
 // ── Tiempo de juego cargado a mano (CARGAR PARTIDO, nov 2026) ────────────────
@@ -183,17 +327,18 @@ test("a mano: el partido muestra la lupa y los tramos (sin cinta) y la temporada
   const txt = JSON.stringify(lz.llamadas);
   assert.ok(txt.includes("18:16<small>59%</small>"), "posesión sobre UNI + Rival (18:16 de 31:00)");
   assert.ok(txt.includes("El partido") && txt.includes("<b>1:25:29</b>") && txt.includes("<b>30:10</b>"), "los dos totales de la lupa");
-  assert.ok(txt.includes("<b>0:32</b>") && txt.includes("<b>2:02</b>"), "promedio y el más largo, del mismo tamaño");
-  assert.ok(!/\d+ tramos/.test(txt), "sin la cantidad estimada");
-  assert.ok(!txt.includes("Cada posesión"));
+  const limpio = txt.replaceAll("\\", "");
+  assert.ok(limpio.includes("<b>32<small>seg</small></b>") && limpio.includes("<b>2:02<small>min</small></b>"), "promedio y la más larga, del mismo tamaño");
+  assert.ok(!/\d+ veces/.test(txt), "sin la cantidad estimada");
+  assert.ok(!txt.includes("Cada vez que la tuvo"));
   // temporada: 2 tramos de Uni-Dat (60 s) + 57 estimados (1810 s) → (60 + 1810) / 59 = 31,7 s ≈ 0:32
   const t = temporada(ps, 2026, "Primera");
   const lt = new Registro();
   tiempoDeJuegoTemporada(lt, t);
   const tt = JSON.stringify(lt.llamadas);
   assert.equal(lt.llamadas.filter((l) => l.f === "plotly_chart").length, 2);   // la línea partido a partido + las barras
-  assert.ok(tt.includes("Pelota en juego, cada tramo") && tt.includes("<b>0:32</b>"));
-  assert.ok(/<b>2:02<\/b><small>[^<]+<\/small>/.test(tt.replaceAll("\\", "")), "el tramo más largo, con su partido");
+  assert.ok(tt.includes("Cada vez que se jugó") && tt.replaceAll("\\", "").includes("<b>32<small>seg</small></b>"));
+  assert.ok(/<b>2:02<small>min<\/small><\/b><small>[^<]+<\/small>/.test(tt.replaceAll("\\", "")), "la más larga, con su partido");
   assert.ok(tt.includes("2 de 2 partidos tienen el tiempo de juego cargado."));
 });
 
@@ -207,4 +352,68 @@ test("seguridad: un rival con HTML no se ejecuta (el tramo más largo muestra el
   // y lo de la base que no es un número no llega a las cuentas
   const [raro] = partidosBase([fila("r")], [manual("m", { ...PLANILLA, bip: "<b>1</b>" }, "r")]);
   assert.equal(Object.hasOwn(raro, "tiempo_juego"), false);
+});
+
+// ── El tiempo de juego en el informe PDF (nov 2026) ─────────────────────────
+const seccionTJ = (x) => {
+  const i = x.bloques.findIndex((b) => b.tipo === "seccion" && b.titulo === "Tiempo de juego");
+  if (i < 0) return null;
+  const fin = x.bloques.findIndex((b, k) => k > i && b.tipo === "seccion");
+  return x.bloques.slice(i + 1, fin < 0 ? undefined : fin);
+};
+const dibujar = (x) => armarPdf(jsPDF, x.bloques, { titulo: x.titulo, pie: x.pie, generado: "Generado hoy" }).getNumberOfPages();
+
+test("PDF: un partido sin tiempo de juego queda igual que siempre (sin la sección)", () => {
+  const ps = partidosBase([fila("a"), fila("c", ENTERO)], []);
+  const t = temporada(ps, 2026, "Primera");
+  assert.equal(seccionTJ(informe(t, "Primera", ps[0])), null);
+  assert.equal(seccionTJ(informe(temporada([ps[0]], 2026, "Primera"), "Primera")), null);
+});
+
+test("PDF: un partido medido en Uni-Dat: la lupa con la temporada debajo, cuánto duró cada vez y 1° y 2° tiempo", () => {
+  const otro = { ...fila("b", marcas([0, "UNI"], [60, "OUT"], [100, "PAUSA"], [900, "RIVAL", "ST"], [940, "PAUSA", "ST"])), fecha: "2026-11-08" };
+  const ps = partidosBase([fila("a", ENTERO), otro], []);
+  const x = informe(temporada(ps, 2026, "Primera"), "Primera", ps[0]);
+  const [lupa, veces, mitades, nota] = seccionTJ(x);
+  assert.equal(lupa.frase, "De cada 10 minutos, la pelota estuvo en juego 4 y medio.");
+  assert.deepEqual(lupa.barras.map((b) => [b.titulo, b.total]), [["El partido", "2:40"], ["El tiempo en juego", "1:10"]]);
+  assert.deepEqual(lupa.barras[0].partes.map((p) => [p.rotulo, p.valor, p.pct, p.peso, p.color, p.abajo]),
+    [["En juego", "1:10", 44, 70000, "acento", "Temporada 57%"], ["Pelota muerta", "1:30", 56, 90000, "neutro", "Temporada 43%"]]);
+  assert.deepEqual(lupa.barras[1].partes.map((p) => [p.valor, p.pct, p.abajo]), [["1:00", 86, "Temporada 71%"], ["0:10", 14, "Temporada 29%"]]);
+  assert.deepEqual(veces.columnas.map((c) => c.titulo), ["Cuánto duró", "Promedio", "La más larga", "Veces"]);
+  assert.deepEqual(veces.filas, [["Cada vez que se jugó", "23 seg", "40 seg", "3"], ["Cada vez que se paró", "45 seg", "1:00 min", "2"],
+    ["Cada vez que la tuvo UNI", "30 seg", "40 seg", "2"], ["Cada vez que la tuvo el rival", "10 seg", "10 seg", "1"]]);
+  assert.deepEqual(mitades.filas, [["Lo que duró", "1:00", "1:40"], ["En juego", "0:30 · 50%", "0:40 · 40%"],
+    ["Pelota muerta", "0:30 · 50%", "1:00 · 60%"], ["UNI con la pelota", "0:20 · 67%", "0:40 · 100%"], ["Rival con la pelota", "0:10 · 33%", "0:00 · 0%"]]);
+  assert.equal(nota.tipo, "nota");
+  assert.ok(dibujar(x) >= 1);
+});
+
+test("PDF: un partido a mano (sin cantidad ni 1° y 2° tiempo) y los avisos de carga como nota", () => {
+  const [p] = partidosBase([], [manual("m0", PLANILLA)]);
+  const x = informe(temporada([p], 2026, "Primera"), "Primera", p);
+  const [lupa, nota, veces, ...resto] = seccionTJ(x);
+  assert.equal(lupa.barras[0].partes[0].abajo, null);   // un solo partido con tiempo: sin temporada para comparar
+  assert.ok(nota.texto.includes("En la planilla, UNI + Rival da 31:00") && nota.texto.includes("por eso dura más de 80 minutos"));
+  assert.deepEqual(veces.columnas.map((c) => c.titulo), ["Cuánto duró", "Promedio", "La más larga"]);
+  assert.deepEqual(veces.filas, [["Cada vez que se jugó", "32 seg", "2:02 min"], ["Cada vez que se paró", "59 seg", "2:55 min"]]);
+  assert.equal(resto.length, 0);
+  assert.ok(dibujar(x) >= 1);
+  // sólo el 1° tiempo y sin cerrar: se dice, y el 2° tiempo va con rayas
+  const [q] = partidosBase([fila("a", marcas([0, "UNI"], [30, "OUT"], [60, "RIVAL"]))], []);
+  const s = seccionTJ(informe(temporada([q], 2026, "Primera"), "Primera", q));
+  assert.ok(s[1].texto.includes("Sólo está medido el 1° tiempo") && s[1].texto.includes("quedó abierto"));
+  assert.deepEqual(s.find((b) => b.columnas?.[0].titulo === "1° y 2° tiempo").filas[1], ["En juego", "0:30 · 50%", "—"]);
+});
+
+test("PDF: la temporada: el promedio, cuánto duró cada vez (con su partido) y partido a partido; un rival con HTML se dibuja como texto", () => {
+  const soloPT = { ...fila("b", marcas([0, "UNI"], [30, "OUT"], [60, "PAUSA"])), rival: "<b>Mitad</b>", fecha: "2026-11-08" };
+  const ps = partidosBase([fila("a", ENTERO), soloPT], []);
+  const x = informe(temporada(ps, 2026, "Primera"), "Primera");
+  const [lupa, nota, veces, partidos] = seccionTJ(x);
+  assert.deepEqual(lupa.barras.map((b) => [b.titulo, b.total]), [["El partido, en promedio", "2:40"], ["El tiempo en juego, en promedio", "1:10"]]);
+  assert.ok(nota.texto.startsWith("Promedio de 1 partido. 2 de 2 partidos tienen el tiempo de juego cargado. No entra en el promedio"));
+  assert.deepEqual(veces.filas[0], ["Cada vez que se jugó", "25 seg", "40 seg", "7 nov · X"]);
+  assert.deepEqual(partidos.filas, [["7 nov · X", "1:10 · 44%", "1:00 · 86%"], ["8 nov · bMitad/b (sólo 1° T)", "0:30 · 50%", "0:30 · 100%"]]);
+  assert.ok(dibujar(x) >= 1);
 });

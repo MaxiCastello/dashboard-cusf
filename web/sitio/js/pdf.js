@@ -362,6 +362,74 @@ function reparto(h, b) {
   h.y += REP_ALTO + 12;
 }
 
+// La lupa del tiempo de juego (nov 2026), en una caja: arriba lo principal en
+// palabras; después cada barra con su título y su total, y debajo sus dos
+// partes (una a cada lado): el color, el nombre, el tiempo grande con el % y,
+// si viene, un renglón chico (la temporada).
+const LUPA_PAD = 10, LUPA_GAP = 10;
+const lupaFila = (b) => (b.barras.some((x) => x.partes.some((p) => p.abajo)) ? 60 : 51);
+const lupaAlto = (b) => 2 * LUPA_PAD + (b.frase ? 18 : 0) + b.barras.length * lupaFila(b) + (b.barras.length - 1) * LUPA_GAP - 3;
+function lupa(h, b) {
+  const alto = lupaAlto(b), fila = lupaFila(b);
+  h.lugar(alto + h.cola);
+  const d = h.doc, x0 = M + LUPA_PAD, w = CW - 2 * LUPA_PAD, x1 = x0 + w;
+  d.setFillColor(C.caja);
+  d.roundedRect(M, h.y, CW, alto, 5, 5, "F");
+  let y = h.y + LUPA_PAD;
+  if (b.frase) {
+    h.letra("DMSans", 9.4, C.tinta);
+    h.texto(b.frase, x0, y + 8, { max: w });
+    y += 18;
+  }
+  for (const barra of b.barras) {
+    h.letra("Bebas", 12, C.tinta);
+    const tw = h.ancho(barra.total);
+    h.texto(barra.total, x1, y + 8, { alinear: "right" });
+    h.letra("DMMono", 6, C.gris);
+    h.texto(barra.titulo.toUpperCase(), x0, y + 7, { espacio: 0.8, max: w - tw - 10 });
+    // la barra: el fondo gris (por si no hay nada) y cada parte encima
+    const by = y + 13, bh = 9;
+    d.setFillColor(C.linea);
+    d.roundedRect(x0, by, w, bh, 2, 2, "F");
+    const suma = barra.partes.reduce((s, p) => s + p.peso, 0);
+    const partes = suma ? barra.partes.filter((p) => p.peso > 0) : [];
+    let x = x0;
+    partes.forEach((p, i) => {
+      const pw = i === partes.length - 1 ? x1 - x : (w * p.peso) / suma;
+      d.setFillColor(relleno(p.color));
+      d.rect(x, by, pw, bh, "F");
+      x += pw;
+      if (i < partes.length - 1) {
+        d.setFillColor("#ffffff");
+        d.rect(x - 0.4, by, 0.8, bh, "F");
+      }
+    });
+    // las dos partes: la primera a la izquierda, la otra a la derecha
+    barra.partes.forEach((p, i) => {
+      const der = i > 0, mitad = w / 2 - 6;
+      const rot = p.rotulo.toUpperCase(), por = `${p.pct}%`;
+      h.letra("DMMono", 6, C.gris);
+      const rw = Math.min(h.ancho(rot), mitad - 9);
+      d.setFillColor(relleno(p.color));
+      d.roundedRect(der ? x1 - rw - 9 : x0, by + bh + 4.5, 6, 6, 1.2, 1.2, "F");
+      h.texto(rot, der ? x1 : x0 + 9, by + bh + 10, { alinear: der ? "right" : "left", max: mitad - 9 });
+      h.letra("DMMono", 7, C.gris);
+      const pw = h.ancho(por);
+      h.letra("Bebas", 18, C.tinta);
+      const vw = h.ancho(p.valor);
+      h.texto(p.valor, der ? x1 - pw - 4 : x0, by + bh + 28, { alinear: der ? "right" : "left" });
+      h.letra("DMMono", 7, C.gris);
+      h.texto(por, der ? x1 : x0 + vw + 4, by + bh + 28, { alinear: der ? "right" : "left" });
+      if (p.abajo) {
+        h.letra("DMSans", 6.6, C.gris);
+        h.texto(p.abajo, der ? x1 : x0, by + bh + 37, { alinear: der ? "right" : "left", max: mitad });
+      }
+    });
+    y += fila + LUPA_GAP;
+  }
+  h.y += alto + 12;
+}
+
 const MAR_FILA = 17;
 const marAlto = (b) => 26 + b.filas.length * MAR_FILA;
 function mariposa(h, b) {
@@ -829,7 +897,7 @@ function renglonesMixtos(h, partes, max) {
 
 const altoCajas = (h, b) => 18 + renglonesMixtos(h, b.frase, CW).length * CAJ_RENGLON + 6 + CAJ_ALTO + 10;
 
-const DIBUJAR = { encabezado, seccion, kpis, anillos, reparto, mariposa, tabla, nota, frase, marcador, objetivos, cajas };
+const DIBUJAR = { encabezado, seccion, kpis, anillos, reparto, lupa, mariposa, tabla, nota, frase, marcador, objetivos, cajas };
 
 // Lo primero de un bloque que no se puede cortar: una fila de números o de
 // anillos, un gráfico entero, el encabezado de una tabla y 3 renglones, una
@@ -842,6 +910,7 @@ function primero(h, b, cola = 0) {
     case "kpis": return KPI_ALTO + (b.items.length <= columnas(b.items.length) ? cola : 0);
     case "anillos": return aniAlto(b) + (b.items.length <= columnas(b.items.length) ? cola : 0);
     case "reparto": return REP_ALTO + cola;
+    case "lupa": return lupaAlto(b) + cola;
     case "mariposa": return Math.min(marAlto(b) + cola, ABAJO - ARRIBA);
     case "tabla": {
       const { fila, cab } = medTabla(b);
