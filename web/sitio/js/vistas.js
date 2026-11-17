@@ -7,13 +7,15 @@
 // Criterio de los números: primero "X de Y" y después el porcentaje, sin
 // jerga y sin decir si estuvo bien o mal.
 import { etiqueta, pjTexto, resultado, sumar, tacklesTemporada } from "./calculos.js";
+import { cambioConteo, cambioPromedio, cambioProporcion, dispersionConteo, dispersionProporcion, ejeDe, enjambre, tono } from "./comparar.js";
 import { coma, conSigno, duracion, esc, fijo, mmss, pct, redondear, unDecimal, xdey } from "./formato.js";
 import { acumulado, apiladas, barras, cajas, chances22, cintaJuego, dona, lineas, mapaCalor, marcadorEnElPartido, mariposa, pesas, piruletas, radar,
   rangosJuego }
   from "./graficos.js";
-import { aclarar, anillos, html, kpis, lupa, ojo, porPartido, reparto, tabla, tramos } from "./piezas.js";
+import { aclarar, anillos, cambios, caraACara, html, kpis, leyendaComparar, lupa, resumenComparar, ojo, partidoPorPartido, partidoPromedio, pistas, porPartido,
+  reparto, tabla, tramos } from "./piezas.js";
 import { MIN_AMARILLA, MIN_ROJA, OBJETIVOS, evaluar, minutosConUnoMenos, penales as penalesDe, temporada } from "./objetivos.js";
-import { capitalizar, conDefecto, enteroDeTexto, esVerdad, mayuscula, o, soloCifras, str } from "./python.js";
+import { capitalizar, conDefecto, enteroDeTexto, esVerdad, mayuscula, minuscula, o, soloCifras, str } from "./python.js";
 import { ACENTO, AVISO, MAL, NEUTRO, RIVAL, UNI } from "./tema.js";
 import { videoDe } from "./video.js";
 
@@ -729,6 +731,230 @@ export function contraTemporada(lz, p, t) {
     ["Pateo a los palos", xdey(pa, pb), xdey(ta, tb)],
     ["Penales cometidos por UNI", pen(p), prom(pen(tot))]]));
   nota(c2, "En puntos y penales, la temporada es el promedio por partido; en el resto, la suma.");
+}
+
+// ── Comparar temporadas (nov 2026) ───────────────────────────────────────────
+// (no está en el Python) Dos temporadas cara a cara. a y b: [nombre,
+// temporada]; siempre se muestra primero la más nueva (azul) y después la
+// más vieja (gris), se entre por la que se entre. Sólo lo que las dos pueden
+// tener: la planilla 2025 no tiene el resultado de cada partido ni las
+// tarjetas, y sus tackles son de los partidos con planilla de tackles.
+//
+// Cada cambio es "de la vieja a la nueva": ▲ subió, ▼ bajó. El color dice
+// para quién: verde a favor de UNI, rojo en contra (que bajen los penales de
+// UNI es verde), gris si es tan chico que puede ser casualidad (comparar.js).
+// En lo que es "X de Y" se muestran los dos % (de 79% a 89%), sin restar; en
+// lo que es por partido, el % de diferencia (de 27,8 a 32,8 = 18% más).
+
+const partidosTxt = (n) => `${n} ${n === 1 ? "partido" : "partidos"}`;
+export const COLORES_COMPARAR = ["#4c9aff", "#8b93a3"];   // la nueva, la vieja
+
+// "Rowing, CAP, CRAR ×2": los rivales, en orden, sin repetir.
+function rivalesTxt(rivales) {
+  const veces = new Map();
+  for (const r of rivales.map((x) => str(x))) veces.set(r, (veces.get(r) ?? 0) + 1);
+  return [...veces].map(([r, n]) => (n > 1 ? `${r} ×${n}` : r)).join(", ");
+}
+
+// Lo que cambió, en palabras de la cancha ("menos penales de UNI en el scrum").
+const FRASES = new Map([["Line propio ganado", "lines propios ganados"], ["Scrum propio ganado", "scrums propios ganados"],
+  ["Salidas propias ganadas", "salidas propias ganadas"], ["Pateo a los palos", "acierto a los palos"],
+  ["Tackles completados", "tackles completados"], ["Chances en 22 concretadas", "chances en 22 concretadas"],
+  ["Puntos a favor", "puntos a favor"], ["Puntos en contra", "puntos en contra"], ["Tries de UNI", "tries de UNI"],
+  ["Tries del rival", "tries del rival"], ["Penales de UNI", "penales de UNI"], ["Penales del rival", "penales del rival"]]);
+const DONDE = new Map([["Salida", "en las salidas"], ["Salida 22", "en las salidas de 22"]]);
+export function fraseCambio(rotulo, dir, sit = null) {
+  const lugar = sit ? ` ${DONDE.get(sit) ?? `en el ${minuscula(sit)}`}` : "";
+  return `${dir > 0 ? "más" : "menos"} ${FRASES.get(rotulo) ?? minuscula(rotulo)}${lugar}`;
+}
+
+export function compararTemporadas(lz, a, b) {
+  const lados = [a, b].sort((p, q) => Number(q[0]) - Number(p[0])).map(([nombre, t], i) => {
+    const tot = t.totales, jug = tacklesTemporada(t.partidos);
+    // en cuántos partidos hay dato de algo (la planilla suma todos sus partidos)
+    const con = (f) => (t.planilla ? t.n_partidos : t.partidos.filter(f).length);
+    return { nombre, t, tot, n: t.n_partidos, tk: [hechos(jug), intentos(jug)], pateo: pateo(tot), ef: tot.efectividad_22,
+      color: COLORES_COMPARAR[i], con };
+  });
+  const [nu, vi] = lados;
+  const nombres = lados.map((l) => l.nombre);
+  const prom = (total, n) => (n ? unDecimal(total / n) : "—");
+
+  // el cambio de algo que es "X de Y" (más es a favor) y el de algo por partido
+  // (por partido, el % va siempre: en gris si es parecido)
+  const chipPct = (c, mejor = 1) => c && (c.firme ? { tono: tono(c, mejor), dir: c.dir, txt: c.dir > 0 ? "Subió" : "Bajó" }
+    : { tono: "parecido", dir: 0, txt: "Parecido" });
+  const chipRel = (c, mejor) => c && (!c.dir || c.rel === 0 ? { tono: "parecido", dir: 0, txt: "Igual" }
+    : { tono: tono(c, mejor), dir: c.dir, txt: c.rel === null ? (c.dir > 0 ? "Subió" : "Bajó") : `${Math.abs(c.rel)}%` });
+
+  // ── lo que se hace por partido: { rotulo, total(l), mejor, c (el cambio) }
+  // porP(p): lo de un partido, para medir cuánto varían los partidos entre sí
+  // (dispersionConteo); la planilla no lo tiene partido a partido.
+  const triesDe = (x, lado) => x.puntos[`tries_${lado}`] + x.puntos[`triesp_${lado}`];
+  const porPartidoEn = (porP) => lados.map((l) => (l.t.planilla ? null : l.t.partidos.map(porP)));
+  const conteo = (rotulo, total, mejor, porP) => ({ rotulo, total, mejor,
+    c: cambioConteo(total(nu), nu.n, total(vi), vi.n, dispersionConteo(porPartidoEn(porP))) });
+  const media = (rotulo, clave, mejor) => {
+    const total = (l) => l.tot[clave];
+    return { rotulo, total, mejor, c: cambioPromedio(total(nu), nu.n, total(vi), vi.n, porPartidoEn((p) => p[clave])) };
+  };
+  const favor = media("Puntos a favor", "score_uni", 1), contra = media("Puntos en contra", "score_rival", -1);
+  const porPartidoDe = [favor, contra,
+    conteo("Tries de UNI", (l) => triesDe(l.tot, "u"), 1, (p) => triesDe(p, "u")),
+    conteo("Tries del rival", (l) => triesDe(l.tot, "r"), -1, (p) => triesDe(p, "r")),
+    conteo("Penales de UNI", (l) => pen(l.tot), -1, (p) => pen(p)),
+    conteo("Penales del rival", (l) => pen(l.tot, "rival"), 1, (p) => pen(p, "rival"))];
+  // los penales de UNI según dónde: las situaciones de las dos, en el orden en que aparecen
+  const sits = lados.map((l) => new Map(porSituacion(l.tot.penales).map(([s, u]) => [s, u])));
+  const enSit = (p, s) => p.penales.filter((f) => f.situacion === s).reduce((n, f) => n + f.uni, 0);
+  const donde = [...new Set(sits.flatMap((m) => [...m.keys()]))].filter((s) => sits.some((m) => m.get(s)))
+    .map((s) => conteo(s, (l) => sits[lados.indexOf(l)].get(s) ?? 0, -1, (p) => enSit(p, s)));
+
+  // ── lo ganado de cada cosa ("X de Y"). partidos(l): [[a, b, rival]] de cada
+  // partido (null si no lo tiene partido a partido: la planilla, salvo
+  // tackles y chances). Sirve para medir cuánto varían los partidos y para
+  // decir de qué partidos sale el dato.
+  // (un partido sin scrums propios no es un dato que falta: sí lo es un partido sin tackles o sin chances cargadas)
+  const cada = (l, f) => (l.t.planilla ? null : l.t.partidos.map((p) => [...f(p), p.rival]));
+  const cosas = [
+    ["Line propio ganado", (l) => [l.tot.line.uGan, l.tot.line.uLan], (l) => cada(l, (p) => [p.line.uGan, p.line.uLan])],
+    ["Scrum propio ganado", (l) => [l.tot.scrum.uGan, l.tot.scrum.uLan], (l) => cada(l, (p) => [p.scrum.uGan, p.scrum.uLan])],
+    ["Salidas propias ganadas", (l) => [l.tot.salida.uGan, l.tot.salida.uPro], (l) => cada(l, (p) => [p.salida.uGan, p.salida.uPro])],
+    ["Pateo a los palos", (l) => l.pateo, (l) => cada(l, pateo)],
+    ["Tackles completados", (l) => l.tk, (l) => l.t.partidos.map((p) => [hechos(p.tackles), intentos(p.tackles), p.rival]), true],
+    ["Chances en 22 concretadas", (l) => (l.ef ? [l.ef.concretadas, l.ef.chances] : [0, 0]),
+      (l) => l.t.serie_22.map((s) => [s.concretadas, s.chances, s.rival]), true],
+  ].filter(([, de]) => lados.some((l) => de(l)[1]))   // si ninguna de las dos lo tiene, no va
+    .map(([rotulo, de, partidos, puedeFaltar = false]) => {
+      const des = lados.map(de), conDato = lados.map((l) => partidos(l)?.filter(([, q]) => q) ?? null);
+      const c = cambioProporcion(des[0], des[1], dispersionProporcion(conDato));
+      // de qué partidos sale el dato, si no son todos (con los rivales, si son pocos)
+      const parcial = lados.map((l, i) => {
+        const k = conDato[i] ? conDato[i].length : l.n;
+        if (!puedeFaltar || !des[i][1] || k >= l.n) return null;
+        return { largo: `${l.nombre}: sólo ${k} de ${partidosTxt(l.n)} tienen el dato${k <= 8 ? ` (${rivalesTxt(conDato[i].map((x) => x[2]))})` : ""}`,
+          corto: `${k} de ${partidosTxt(l.n)} en ${l.nombre}` };
+      }).filter(Boolean);
+      return { rotulo, des, c, dif: chipPct(c), muestra: parcial.length ? parcial.map((x) => x.largo).join(" · ") : null,
+        corto: parcial.length ? parcial.map((x) => x.corto).join(" y ") : null };
+    });
+  const escrito = ([p, q]) => (q ? xdey(p, q) : "Sin datos");
+
+  // ── lo firme de todo, primero lo más firme (arriba: el resumen y las tarjetas)
+  const firmes = [
+    ...cosas.filter((x) => x.c?.firme).map((x) => ({
+      z: x.c.z, rotulo: x.rotulo, antes: `${x.c.antes}%`, ahora: `${x.c.ahora}%`, unidad: "", dif: x.dif, ojo: x.muestra, corto: x.corto,
+      frase: fraseCambio(x.rotulo, x.c.dir), renglones: lados.map((l, i) => [l.nombre, `${x.des[i][0]} de ${x.des[i][1]}`, l.color]),
+    })),
+    ...[...porPartidoDe, ...donde.map((d) => ({ ...d, sit: d.rotulo, rotulo: `Penales de UNI: ${d.rotulo}` }))].filter((x) => x.c?.firme).map((x) => ({
+      z: x.c.z, rotulo: x.rotulo, antes: prom(x.total(vi), vi.n), ahora: prom(x.total(nu), nu.n), unidad: "por partido",
+      frase: fraseCambio(x.sit ? "Penales de UNI" : x.rotulo, x.c.dir, x.sit),
+      dif: chipRel(x.c, x.mejor), renglones: lados.map((l) => [l.nombre, `${x.total(l)} en ${partidosTxt(l.n)}`, l.color]),
+    })),
+  ].sort((p, q) => Math.abs(q.z) - Math.abs(p.z));
+
+  // un partido que mueve solo el promedio de puntos (un 115–7): se avisa
+  const fueraDeLoComun = lados.filter((l) => !l.t.planilla && l.n >= 5).flatMap((l) => {
+    const p = l.t.partidos.reduce((m, x) => (x.score_uni > m.score_uni ? x : m));
+    const sinU = (l.tot.score_uni - p.score_uni) / (l.n - 1), sinR = (l.tot.score_rival - p.score_rival) / (l.n - 1);
+    if (Math.abs(l.tot.score_uni / l.n - sinU) * 10 < l.tot.score_uni / l.n) return [];
+    return [`Ojo: el ${p.score_uni}–${p.score_rival} a ${str(p.rival)} sube solo el promedio de ${l.nombre}. ` +
+      `Sin ese partido, ${l.nombre} queda en ${unDecimal(sinU)} a favor y ${unDecimal(sinR)} en contra por partido.`];
+  });
+
+  // ── arriba de todo: qué es cada color y, en palabras, lo que cambió
+  lz.html(leyendaComparar(lados.map((l) => ({ nombre: l.nombre, n: partidosTxt(l.n), color: l.color }))));
+  const conOjo = (x) => (x.corto ? `${x.frase} (ojo: el dato sale de sólo ${x.corto})` : x.frase);
+  lz.html(resumenComparar(`De ${vi.nombre} a ${nu.nombre}`, firmes.filter((x) => x.dif.tono === "favor").map(conOjo),
+    firmes.filter((x) => x.dif.tono === "contra").map(conOjo)));
+  nota(lz, "Sólo se pinta lo que cambió de verdad: verde a favor de UNI, rojo en contra (que bajen los penales de UNI es verde). " +
+    "En gris, parecido: la diferencia es tan chica, para la cantidad de partidos, que puede ser casualidad.");
+
+  // ── los puntos de un partido promedio
+  lz.titulo("Puntos por partido");
+  lz.html(partidoPromedio(lados.map((l) => {
+    let res = null, abajo = `${partidosTxt(l.n)} · sin el resultado de cada uno`;
+    if (!l.t.planilla) {
+      const r = l.t.partidos.map(resultado);
+      res = ["G", "E", "P"].map((k) => cuantos(r, k));
+      const [g, e, p] = res;
+      abajo = `${g} ${g === 1 ? "ganado" : "ganados"} · ${e} ${e === 1 ? "empatado" : "empatados"} · ${p} ${p === 1 ? "perdido" : "perdidos"}`;
+    }
+    return { nombre: l.nombre, color: l.color, favor: prom(l.tot.score_uni, l.n), contra: prom(l.tot.score_rival, l.n), res, abajo };
+  }), [favor, contra].map((m) => [m.rotulo, prom(m.total(vi), vi.n), prom(m.total(nu), nu.n), chipRel(m.c, m.mejor)])));
+  nota(lz, "El promedio de puntos que hizo UNI y el que le hicieron, por partido.");
+  for (const o of fueraDeLoComun) lz.html(html`<div class="ojo-cmp">${o}</div>`);
+  if (firmes.length) {
+    lz.titulo(`Lo que más cambió de ${vi.nombre} a ${nu.nombre}`);
+    lz.html(cambios(firmes.slice(0, 4)));
+  }
+
+  const cc = lz.plegable("Lo ganado de cada cosa");
+  cc.html(pistas(cosas.map((x) => ({ rotulo: x.rotulo, muestra: x.muestra, p: x.des.map(([p, q]) => (q ? pct(p, q) : null)),
+    txt: x.des.map(escrito), dif: x.dif })), nombres, COLORES_COMPARAR));
+  nota(cc, "Cada punto es una temporada, puesto en su % de ganado sobre el eje de arriba: más a la derecha, más se ganó. " +
+    "Lo pintado entre los dos es lo que cambió.");
+
+  // ── la telaraña de las dos, una arriba de la otra (con lo que tienen las dos)
+  const ejes = cosas.filter((x) => x.des.every(([, q]) => q));
+  if (ejes.length >= 3) {
+    const fr = lz.plegable("La forma de cada temporada");
+    const serie = (i, relleno) => [lados[i].nombre, ejes.map((x) => pct(...x.des[i])), lados[i].color, relleno, ejes.map((x) => xdey(...x.des[i]))];
+    // (la primera palabra: en el celular un rótulo largo se corta contra el borde)
+    fr.grafico(radar(ejes.map((x) => (x.rotulo.startsWith("Chances") ? "Chances 22" : x.rotulo.split(" ")[0])),
+      [serie(1, "rgba(139,147,163,.15)"), serie(0, "rgba(76,154,255,.22)")]));
+    nota(fr, "Lo ganado de cada cosa, en %: cuanto más afuera, más se ganó. Donde las dos formas se separan, cambió.");
+  }
+
+  // ── por partido: barras enfrentadas
+  const fila = (x) => {
+    const [va, vb] = lados.map((l) => (l.n ? x.total(l) / l.n : 0));
+    return [x.rotulo, va, vb, ...lados.map((l) => [prom(x.total(l), l.n), `${x.total(l)} en ${l.n}`]), chipRel(x.c, x.mejor)];
+  };
+  const pp = lz.plegable("Por partido");
+  pp.html(caraACara(porPartidoDe.map(fila), nombres, COLORES_COMPARAR));
+  nota(pp, "El número grande es el promedio por partido; abajo, el total y en cuántos partidos. En el medio, cuánto cambió en %.");
+
+  if (donde.length) {
+    const dp = lz.plegable("Penales de UNI, según dónde");
+    dp.html(caraACara(donde.map(fila), nombres, COLORES_COMPARAR));
+    nota(dp, "Penales de UNI por partido en cada situación. Abajo de cada número, el total y en cuántos partidos.");
+  }
+
+  // ── partido por partido: cada punto es un partido (lo que las dos tienen partido a partido)
+  const tiras = [
+    ["Tackles completados en cada partido", (l) => l.t.partidos.filter((p) => intentos(p.tackles))
+      .map((p) => [pct(hechos(p.tackles), intentos(p.tackles)), p.rival]), (l) => l.tk],
+    ["Chances en 22 concretadas en cada partido", (l) => l.t.serie_22.filter((s) => s.chances).map((s) => [pct(s.concretadas, s.chances), s.rival]),
+      (l) => (l.ef ? [l.ef.concretadas, l.ef.chances] : [0, 0])],
+  ].map(([titulo, de, total]) => {
+    const datos = lados.map(de), totales = lados.map((l) => { const [p, q] = total(l); return q ? pct(p, q) : null; });
+    const todos = datos.flat().map(([p]) => p);
+    if (!todos.length) return null;
+    const eje = ejeDe([...todos, ...totales.filter((x) => x !== null)]);
+    return { titulo, eje, filas: lados.map((l, i) => {
+      const ps = datos[i];
+      let abajo = "Sin datos partido a partido";
+      if (ps.length) {
+        const bajo = ps.reduce((m, x) => (x[0] < m[0] ? x : m)), alto = ps.reduce((m, x) => (x[0] > m[0] ? x : m));
+        abajo = `${partidosTxt(ps.length)} · el más bajo ${bajo[0]}% (${str(bajo[1])}) · el más alto ${alto[0]}% (${str(alto[1])})` +
+          (totales[i] === null ? "" : ` · la raya: toda la temporada, ${totales[i]}%`);
+      }
+      return { nombre: l.nombre, color: l.color, puntos: enjambre(ps.map(([p]) => p), (eje[1] - eje[0]) * 0.05), total: ps.length ? totales[i] : null, abajo };
+    }) };
+  }).filter(Boolean);
+  if (tiras.length) {
+    const tp = lz.plegable("Partido por partido: ¿parejo o desparejo?");
+    tp.html(partidoPorPartido(tiras));
+    nota(tp, "Cada punto es un partido, puesto en su % sobre el eje de abajo. Los que dieron parecido quedan apilados. " +
+      "Todos juntos: una temporada pareja. Desparramados: partidos muy distintos entre sí.");
+  }
+
+  const pl = lados.find((l) => l.t.planilla);
+  if (pl) {
+    nota(lz, `${pl.nombre} sale de la planilla: suma ${partidosTxt(pl.n)}, sin el resultado de cada uno. ` +
+      `Sus tackles son de los ${partidosTxt(pl.t.partidos.length)} que tienen planilla de tackles.`);
+  }
 }
 
 // ── Tiempo de juego (nov 2026) ───────────────────────────────────────────────

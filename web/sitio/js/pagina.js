@@ -42,8 +42,9 @@ const conTiempoDeJuego = (rotulos) => [...rotulos.slice(0, TJ), "Tiempo de juego
 const sinTJ = (conTJ, i) => (conTJ && i > TJ ? i - 1 : i);
 
 // "Video" va anteúltima (antes del Informe), sólo en un partido con el link cargado.
-const VIDEO = "Video";
-const conVideo = (rotulos, hay) => (hay ? [...rotulos.slice(0, -1), VIDEO, rotulos.at(-1)] : rotulos);
+// Lo mismo "Comparar", en la temporada, si hay otra temporada con qué compararla.
+const VIDEO = "Video", COMPARAR = "Comparar";
+const antesDelInforme = (rotulos, nombre, hay) => (hay ? [...rotulos.slice(0, -1), nombre, rotulos.at(-1)] : rotulos);
 
 // Algo falló: sólo el mensaje (como el Python, que deja de mostrar el tablero).
 export function fallo(err) {
@@ -127,6 +128,44 @@ export function tablero({ partidos, errorBase = null }) {
     vista(t, pestana);
   }
 
+  // Las otras temporadas con las que se puede comparar la que se ve:
+  // [[nombre, temporada]], la más nueva primero. De la base, la misma
+  // categoría de otro año; la planilla 2025 es de Primera.
+  function otrasTemporadas() {
+    const cat = estado.anio === ANIO_PLANILLA ? "Primera" : estado.cat;
+    const out = [];
+    for (const a of anios) {
+      if (a === estado.anio) continue;
+      if (a === ANIO_PLANILLA) {
+        if (cat === "Primera") out.push([String(a), PLANILLA_2025]);
+      } else {
+        const otra = temporada(partidos, a, cat);
+        if (otra.n_partidos) out.push([String(a), otra]);
+      }
+    }
+    return out;
+  }
+
+  // La pestaña Comparar: si hay más de una temporada para elegir, los radios arriba.
+  function comparar(panel, t, otras) {
+    poner(panel, html`${otras.length > 1 ? html`<div class="filtro" role="radiogroup" aria-label="Comparar con"><p class="rotulo">Comparar con</p><div
+class="radios"></div></div>` : ""}<div class="bloque"></div>`);
+    const donde = panel.querySelector(".bloque");
+    const dibujar = (otra) => {
+      poner(donde, "");
+      V.compararTemporadas(new EnPagina(donde), [String(estado.anio), t], otra);
+    };
+    if (otras.length > 1) {
+      const elegir = (nombre) => {
+        radios(panel.querySelector(".radios"), otras.map(([n]) => [n, n]), nombre, seguro(elegir));
+        dibujar(otras.find(([n]) => n === nombre));
+      };
+      elegir(otras[0][0]);
+    } else {
+      dibujar(otras[0]);
+    }
+  }
+
   function vista(t, pestana = 0) {
     const cont = $("vista");
     if (estado.ver === "temporada" || estado.ver.startsWith("torneo:")) {
@@ -143,11 +182,14 @@ export function tablero({ partidos, errorBase = null }) {
       }
       // "Tiempo de juego" (nov 2026), después de Resumen, sólo si algún partido lo tiene cargado
       const conTJ = t.partidos.some((x) => x.tiempo_juego);
-      pestanas(cont, conTJ ? conTiempoDeJuego(PESTANAS_TEMPORADA) : PESTANAS_TEMPORADA, seguro((i, panel) => {
+      // "Comparar" (nov 2026), antes del Informe: la temporada entera al lado de otra (no un torneo)
+      const otras = estado.ver === "temporada" ? otrasTemporadas() : [];
+      const rotulos = antesDelInforme(conTJ ? conTiempoDeJuego(PESTANAS_TEMPORADA) : PESTANAS_TEMPORADA, COMPARAR, otras.length > 0);
+      pestanas(cont, rotulos, seguro((i, panel) => {
         if (conTJ && i === TJ) return V.tiempoDeJuegoTemporada(new EnPagina(panel), t);
-        const f = SECCIONES_TEMPORADA[sinTJ(conTJ, i)];
-        if (f) f(new EnPagina(panel), t);
-        else pestanaInforme(panel, t, cat);
+        if (i === rotulos.length - 1) return pestanaInforme(panel, t, cat);
+        if (rotulos[i] === COMPARAR) return comparar(panel, t, otras);
+        return SECCIONES_TEMPORADA[sinTJ(conTJ, i)](new EnPagina(panel), t);
       }), pestana);
       return;
     }
@@ -166,7 +208,7 @@ export function tablero({ partidos, errorBase = null }) {
     // (las pestañas van debajo del marcador; apagarPestanas(cont) también las apaga)
     const conTJ = !!p.tiempo_juego;
     // "Video" (nov 2026), después de Objetivos y antes del Informe, sólo si el partido tiene el link cargado
-    const rotulos = conVideo(conTJ ? conTiempoDeJuego(PESTANAS_PARTIDO) : PESTANAS_PARTIDO, !!p.video);
+    const rotulos = antesDelInforme(conTJ ? conTiempoDeJuego(PESTANAS_PARTIDO) : PESTANAS_PARTIDO, VIDEO, !!p.video);
     pestanas(lz.poner(html`<div class="pestanas-partido"></div>`), rotulos, seguro((i, panel) => {
       if (conTJ && i === TJ) return V.tiempoDeJuego(new EnPagina(panel), p, t);
       if (i === rotulos.length - 1) return pestanaInforme(panel, t, estado.cat, p);

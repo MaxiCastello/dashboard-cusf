@@ -167,6 +167,110 @@ h3 { font-size: 1.35rem; line-height: 1.2; letter-spacing: -0.005em; margin-top:
 .video { position:relative; aspect-ratio:16/9; max-width:960px; margin:4px auto 10px; background:#000; border-radius:12px; overflow:hidden; }
 .video iframe, .video video { position:absolute; inset:0; width:100%; height:100%; border:0; }
 a.boton { display:inline-flex; align-items:center; text-decoration:none; }
+/* ── Comparar temporadas (nov 2026): dos temporadas cara a cara ── */
+/* el cambio: verde a favor de UNI, rojo en contra, gris parecido (puede ser casualidad) */
+.dif { display:inline-flex; align-items:baseline; gap:4px; padding:2px 9px; border-radius:999px; white-space:nowrap;
+  font-family:'DM Mono',monospace; font-size:.74rem; border:1px solid var(--borde); color:var(--apagado); }
+.dif i { font-style:normal; font-size:.66rem; }
+.dif.favor { color:#6ee7a0; background:rgba(0,200,83,.14); border-color:rgba(0,200,83,.55); }
+.dif.contra { color:#ff8a9b; background:rgba(255,23,68,.14); border-color:rgba(255,23,68,.55); }
+/* la leyenda de arriba: qué color es cada temporada y qué dice cada color de los cambios */
+.cley { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 18px; padding:10px 12px;
+  background:var(--sup); border:1px solid var(--borde); border-radius:12px; }
+.cley > div { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; }
+.cley .cl1 span { display:inline-flex; align-items:center; gap:7px; font-size:.84rem; color:var(--apagado); }
+.cley .cl1 b { font-family:'Bebas Neue',sans-serif; font-weight:400; font-size:1.2rem; letter-spacing:1.5px; color:var(--texto); line-height:1; }
+.cley i, .pm .pn i, .cb .cr i, .pistas .pe i, .cara .cab i { width:10px; height:10px; border-radius:50%; flex:none; }
+.cley .dif i { width:auto; height:auto; }
+/* los puntos de un partido promedio: dos marcadores y, abajo, el antes y el ahora */
+.promedios { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin:4px 0 6px; max-width:860px; }
+.pm { background:var(--sup); border:1px solid var(--borde); border-top:3px solid; border-radius:12px; padding:12px 10px; text-align:center; min-width:0; }
+.pm .pn { font-family:'Bebas Neue',sans-serif; font-size:1.25rem; letter-spacing:2px; line-height:1; display:flex; align-items:center;
+  justify-content:center; gap:8px; }
+.pm .pv { display:flex; align-items:flex-start; justify-content:center; gap:10px; margin:8px 0 8px; }
+.pm .pv b { display:block; font-family:'Bebas Neue',sans-serif; font-weight:400; font-size:clamp(2rem,9vw,3.4rem); line-height:1; letter-spacing:1px; }
+.pm .pv span { display:block; font-family:'DM Mono',monospace; font-size:.64rem; letter-spacing:1px; text-transform:uppercase; color:var(--apagado); }
+.pm .pv em { font-style:normal; font-family:'Bebas Neue',sans-serif; font-size:clamp(1.4rem,6vw,2.4rem); line-height:1.3; color:var(--apagado); }
+.pm .pb { display:flex; gap:2px; height:8px; margin:0 auto 7px; max-width:260px; border-radius:4px; overflow:hidden; }
+.pm .pb .r0 { background:#00c853; } .pm .pb .r1 { background:#6b7280; } .pm .pb .r2 { background:#ff1744; }
+.pm .px { font-size:.76rem; color:var(--apagado); font-family:var(--st); line-height:1.35; }
+.promedios .pc { grid-column:1 / -1; display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:6px 18px; padding:2px 2px 0; }
+.promedios .pc > div { display:flex; align-items:center; gap:10px; font-size:.84rem; }
+.promedios .pc span:first-child { color:var(--apagado); min-width:6.4em; }
+.promedios .pc b { font-family:'Bebas Neue',sans-serif; font-weight:400; font-size:1.3rem; letter-spacing:.5px; line-height:1; }
+.promedios .pc em, .cb .cv em { font-style:normal; color:var(--apagado); margin:0 6px; }
+/* lo que más cambió: el antes y el ahora en grande; el borde, del color del cambio */
+.cambios { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:10px; margin:4px 0 14px; }
+.cb { background:var(--sup); border:1px solid var(--borde); border-left:4px solid var(--borde); border-radius:12px; padding:12px 14px; min-width:0; }
+.cb.favor { border-left-color:#00c853; } .cb.contra { border-left-color:#ff1744; }
+.cb .cn { font-family:'Bebas Neue',sans-serif; font-size:1.15rem; letter-spacing:1.5px; line-height:1.1; }
+.cb .cv { display:flex; align-items:baseline; flex-wrap:wrap; margin:8px 0 6px; font-family:'Bebas Neue',sans-serif; line-height:1; }
+.cb .cv span { font-size:1.6rem; color:var(--apagado); letter-spacing:.5px; }
+.cb .cv b { font-weight:400; font-size:2.5rem; letter-spacing:1px; }
+.cb .cv small { font-family:'DM Mono',monospace; font-size:.68rem; color:var(--apagado); margin-left:8px; }
+.cb .cd { margin-bottom:8px; }
+.cb .cr { display:flex; align-items:center; gap:8px; font-size:.8rem; line-height:1.7; }
+.cb .cr b { font-family:'DM Mono',monospace; font-weight:400; color:var(--apagado); }
+.cb .cr span { font-family:'DM Mono',monospace; font-size:.76rem; }
+/* lo ganado de cada cosa: un eje de 0 a 100% arriba y, en cada renglón, el punto de cada temporada con su % */
+.pistas, .cara, .tiras { margin:4px 0 10px; max-width:860px; }
+.pistas .pj { padding:0 22px; }
+.pistas .pj > span, .tiras .tk::after { display:block; text-align:center; font-family:'DM Mono',monospace; font-size:.66rem; letter-spacing:1px;
+  text-transform:uppercase; color:var(--apagado); }
+.pistas .pj > div, .tiras .tk > div { position:relative; height:16px; }
+.pistas .pj s, .tiras .tk s { position:absolute; top:0; transform:translateX(-50%); text-decoration:none; font-family:'DM Mono',monospace;
+  font-size:.66rem; color:var(--apagado); }
+.pi { padding:10px 0 12px; border-top:1px solid var(--borde); }
+.pi .pt { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:.9rem; }
+/* la pista: las rayas del eje (cada 25%) de fondo y la línea al medio */
+.pi .pr { position:relative; height:62px; margin:2px 22px 0;
+  background:
+    linear-gradient(var(--sup2),var(--sup2)) 0 50% / 100% 6px no-repeat,
+    linear-gradient(to right,var(--borde) 1px,transparent 1px) 0 0 / 25% 100%,
+    linear-gradient(var(--borde),var(--borde)) 100% 0 / 1px 100% no-repeat; }
+.pi .pr u { position:absolute; top:50%; height:6px; margin-top:-3px; background:rgba(232,234,240,.55); }
+.pi .pr i { position:absolute; top:50%; width:18px; height:18px; margin:-9px 0 0 -9px; border-radius:50%; border:3px solid var(--bg); }
+.pi .pr b { position:absolute; transform:translateX(-50%); font-family:'Bebas Neue',sans-serif; font-weight:400; font-size:1.05rem;
+  letter-spacing:.5px; line-height:1; }
+.pi .pr b.a { top:1px; } .pi .pr b.b { bottom:0; }
+.pi .pe { display:flex; flex-wrap:wrap; justify-content:space-between; gap:2px 14px; margin-top:4px; font-family:'DM Mono',monospace;
+  font-size:.72rem; color:var(--texto); }
+.pi .pe span { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+.pi .pe b { font-weight:400; color:var(--apagado); }
+.pi .pq, .cb .pq { margin-top:5px; font-size:.72rem; color:#ffd600; font-family:var(--st); }
+.pi .pq::before, .cb .pq::before { content:"Ojo: "; }
+/* cara a cara: barras que salen del medio */
+.cara .cf { display:grid; grid-template-columns:minmax(0,1fr) 116px minmax(0,1fr); gap:8px; align-items:end; padding:9px 0;
+  border-bottom:1px solid var(--borde); }
+.cara .cab { padding:0 0 6px; font-family:'Bebas Neue',sans-serif; font-size:1.1rem; letter-spacing:2px; }
+.cara .cab .cl { display:flex; align-items:center; gap:8px; }
+.cara .cl.a { text-align:right; }
+.cara .cab .cl.a { justify-content:flex-end; }
+.cara .ct b { font-family:'Bebas Neue',sans-serif; font-weight:400; font-size:1.5rem; letter-spacing:.5px; line-height:1; }
+.cara .ct small { display:block; font-family:'DM Mono',monospace; font-size:.66rem; color:var(--apagado); white-space:nowrap; }
+.cara .cz { height:10px; margin-top:5px; display:flex; }
+.cara .cl.a .cz { justify-content:flex-end; }
+.cara .cz i { height:100%; min-width:2px; border-radius:3px; }
+.cara .cm { text-align:center; font-size:.78rem; line-height:1.25; display:flex; flex-direction:column; align-items:center; gap:5px; }
+/* partido por partido: cada punto es un partido sobre un eje con sus números; la raya, la temporada entera */
+.tiras .ti { padding:10px 0 14px; border-bottom:1px solid var(--borde); }
+.tiras .tt { font-size:.9rem; margin-bottom:8px; }
+.tiras .tf { display:grid; grid-template-columns:44px minmax(0,1fr); align-items:end; column-gap:10px; padding:6px 10px 0 0; }
+.tiras .tf > b { font-family:'Bebas Neue',sans-serif; font-weight:400; font-size:1.15rem; letter-spacing:1.5px; line-height:1; padding-bottom:2px; }
+.tiras .tp { position:relative; border-bottom:2px solid var(--sup2); }
+.tiras .tp s { position:absolute; top:0; bottom:0; width:1px; background:var(--borde); }
+.tiras .tp i { position:absolute; width:13px; height:13px; margin-left:-6.5px; border-radius:50%; border:1.5px solid var(--bg); }
+.tiras .tp u { position:absolute; bottom:-2px; top:-4px; width:3px; margin-left:-1.5px; border-radius:2px; opacity:.9; }
+.tiras .tf small { grid-column:2; font-family:'DM Mono',monospace; font-size:.68rem; color:var(--apagado); margin:5px 0 4px; line-height:1.5; }
+.tiras .tk { margin:2px 10px 0 54px; }
+.tiras .tk::after { content:"% de cada partido"; }
+/* el resumen en palabras: lo de a favor en verde, lo de en contra en rojo */
+.resumen-cmp { margin:10px 0 4px; padding:12px 16px; background:var(--sup); border:1px solid var(--borde); border-radius:12px; }
+.resumen-cmp .rt { font-family:"Bebas Neue",sans-serif; font-size:1.15rem; letter-spacing:1.5px; margin-bottom:4px; }
+.resumen-cmp p { margin:4px 0; font-size:.92rem; line-height:1.45; }
+.resumen-cmp p.favor b { color:#6ee7a0; font-weight:600; } .resumen-cmp p.contra b { color:#ff8a9b; font-weight:600; }
+.resumen-cmp p.resto { color:var(--apagado); font-size:.84rem; }
+.ojo-cmp { margin:-4px 0 10px; font-size:.78rem; color:#ffd600; font-family:var(--st); line-height:1.45; max-width:860px; }
 /* ── Objetivos: una card por objetivo; la marca y el color dicen lo mismo ── */
 .objs { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px; margin:4px 0 12px; }
 .objc { background:var(--sup); border:1px solid var(--borde); border-radius:12px; padding:12px 14px;
