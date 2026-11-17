@@ -31,10 +31,16 @@ Arriba se elige la **temporada**, la **categoría** y si se mira **toda la tempo
 - **Tackles**: completados, tipos de tackle y el detalle por jugador.
 - **Tiempo de juego** (sólo en los partidos que lo tienen cargado): cuánto tiempo estuvo la pelota en
   juego y cuánto parada, quién la tuvo y cuánto duró cada tramo.
+- **Comparar**: la temporada al lado de la anterior. Arriba, en palabras, lo que cambió a favor y en
+  contra de UNI; después los puntos por partido, lo que más cambió (con el antes y el ahora), lo
+  ganado de cada cosa, la forma de cada temporada, cada partido como un punto y los penales según
+  dónde. Verde es a favor de UNI, rojo en contra y gris cuando la diferencia es tan chica que puede
+  ser casualidad.
 - **Informe**: un PDF armado para leer en el celular, para mandar por WhatsApp o imprimir.
 
-Mirando un partido solo, además: cómo se fue dando el marcador, el 1° tiempo contra el 2° y cómo
-estuvo ese partido al lado de la temporada.
+Mirando un partido solo, además: cómo se fue dando el marcador, el 1° tiempo contra el 2°, cómo
+estuvo ese partido al lado de la temporada y, si tiene el link cargado, el **video** del partido
+(YouTube o Dropbox) para verlo sin salir del tablero.
 
 Los números se muestran primero como "X de Y" y después en porcentaje, sin jerga. Se ve bien en la
 computadora, la tablet y el celular.
@@ -46,8 +52,9 @@ computadora, la tablet y el celular.
 - **Uni-Dat**: la app con la que el club carga cada partido mientras se juega. El tablero lee esos
   partidos de la base de datos compartida, así que lo que se carga ahí aparece solo.
 - **Carga manual**: para los partidos que no se cargaron en Uni-Dat, para sumar las chances en 22
-  rival a los partidos que no las tienen en la app, o para corregir tarjetas. Sólo pueden hacerlo los
-  administradores. Si un partido tiene las chances cargadas en Uni-Dat, valen ésas.
+  rival o el tiempo de juego a los partidos que no los tienen en la app, para corregir tarjetas o
+  para ponerle a un partido el link de su video. Sólo pueden hacerlo los administradores. Si un
+  partido tiene las chances o el tiempo de juego cargados en Uni-Dat, valen ésos.
 - **Temporada 2025**: planillas de Excel incluidas en el proyecto.
 
 ---
