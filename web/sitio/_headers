@@ -19,6 +19,11 @@
 # - CSP, connect-src: el tablero sólo habla con el proyecto de Supabase de los
 #   partidos. Aunque algo se ejecutara, no tiene a dónde mandar datos. Si se
 #   cambia de proyecto, cambiar la URL acá.
+# - CSP, frame-src y media-src: el video de un partido (pestaña Video). El
+#   reproductor de YouTube va en un iframe (youtube-nocookie: sin cookies
+#   hasta que se le da play) y el archivo de Dropbox lo baja el <video> de la
+#   página (dropbox.com redirige a un servidor de dropboxusercontent.com).
+#   Sólo esos sitios: aunque en la base hubiera otro link, no se carga.
 # - vendor/ y fonts/ llevan la versión o el contenido en el nombre (si
 #   cambian, cambia el nombre): se guardan para siempre. El resto (HTML, JS,
 #   CSS) usa lo de Cloudflare: el navegador pregunta cada vez si cambió.
@@ -33,7 +38,7 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   Strict-Transport-Security: max-age=31536000
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src https://yrxsqrfjqyoicohsfrrt.supabase.co; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src https://yrxsqrfjqyoicohsfrrt.supabase.co; frame-src https://www.youtube-nocookie.com; media-src https://www.dropbox.com https://*.dropboxusercontent.com; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
 
 /vendor/*
   Cache-Control: public, max-age=31536000, immutable

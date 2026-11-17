@@ -13,12 +13,15 @@ const bytes = (b64) => (b64 === null ? null : new Uint8Array(Buffer.from(b64, "b
 // los Map (plantel, tries_origen) no pasan a JSON: no se usan acá
 const plano = (x) => JSON.parse(JSON.stringify(x, (k, v) => (v instanceof Map ? null : v)));
 
+// la casilla del video (nov 2026) no existe en cargar.py: se compara todo lo demás
+const sinVideo = (v) => Object.fromEntries(Object.entries(v).filter(([k]) => k !== "vid"));
+
 const out = casos.map((c) => {
   try {
     if (c.tipo === "csv") return { registros: registrosDelCsv(bytes(c.csv)) };
     if (c.tipo === "partido") {
       // la página arranca cada casilla con valoresPartido(); el caso cambia algunas
-      const valores = valoresPartido(c.fila);
+      const valores = sinVideo(valoresPartido(c.fila));
       return { valores, ...plano(armarPartido({ ...valores, ...c.valores }, c.fila, bytes(c.csv))) };
     }
     if (c.tipo === "complemento") {
@@ -27,7 +30,7 @@ const out = casos.map((c) => {
       const porId = new Map();
       for (const p of [...ps].reverse()) porId.set(p.id, p);
       const p = porId.get(c.sel);
-      const valores = valoresComplemento(p);
+      const valores = sinVideo(valoresComplemento(p));
       return { valores, ...plano(armarComplemento({ ...valores, ...c.valores }, p)), ids: [...porId.keys()] };
     }
     if (c.tipo === "sueltos") return { lista: sueltos(c.filas, desdeManual).map(([id, , et]) => [id, et]) };

@@ -21,6 +21,8 @@
 import { caer, capitalizar, comoPython, comparar, conDefecto, entero, enteroDeTexto, enteroOCaer, entradas, esDict, esVerdad,
   g, letras, mayuscula, minuscula, nulo, o, partir, recortar, soloCifras, soloDigitos, str, suma } from "./python.js";
 
+import { videoDe } from "./video.js";
+
 export { ErrorDatos, entero, esVerdad, leerJson } from "./python.js";
 
 // texto() de calculos.py: sin < > (los gráficos interpretan algunas
@@ -681,6 +683,9 @@ export function desdeManual(fila) {
     p.tiempo_juego_manual = tjm;
     p.tiempo_juego = tiempoJuegoManual(tjm);
   }
+  // el video del partido (nov 2026): sólo si tiene un link que sirva
+  const video = videoDe(de("video"))?.ver;
+  if (video) p.video = video;
   return p;
 }
 
@@ -726,6 +731,9 @@ export function partidosBase(filasUnidat, filasManuales) {
           p.tiempo_juego_manual = tjm;
           if (!p.tiempo_juego) p.tiempo_juego = tiempoJuegoManual(tjm);
         }
+        // el video del partido (nov 2026): un link de YouTube o de Dropbox
+        const video = videoDe(g(datos, "video", "datos"))?.ver;
+        if (video) p.video = video;
         const tj = tarjetasCorregidas(g(datos, "tarjetas"));
         if (tj) {
           p.tarjetas_unidat = p.tarjetas;
@@ -746,13 +754,25 @@ export function partidosBase(filasUnidat, filasManuales) {
 // 'Primera oro f3' -> 'Primera'. Uni-Dat guarda la categoría como texto
 // libre. Si el texto tiene, en cualquier lugar, la palabra de una categoría
 // conocida, es esa ("Semifinal trl oro primera" -> 'Primera'; nov 2026).
-// Si no, la primera palabra, como antes. (Igual en fuente.py.)
+// Si no, la primera palabra que no sea la instancia ni el torneo ("Final",
+// "oro", "trl b"...: eso no es una categoría), y si no queda ninguna, es
+// Primera: "Final oro" -> 'Primera' (nov 2026: la final de la Copa de Oro
+// quedaba en una categoría "Final" aparte); "M19 oro" y "Final M19 oro"
+// siguen siendo 'M19'. (Igual en fuente.py.)
 const CATEGORIAS = [["Primera", /(^|[^\p{L}\p{N}])primera([^\p{L}\p{N}]|$)/iu]];
+const NO_ES_CATEGORIA = new Set(["final", "finales", "semifinal", "semifinales", "semi", "semis", "cuartos", "octavos",
+  "repechaje", "de", "oro", "csf", "trl"]);
+// la palabra sin los signos de puntuación de las puntas y en minúsculas: "(Oro)" -> "oro"
+const pelada = (w) => minuscula(w.replace(/^\p{P}+|\p{P}+$/gu, ""));
+// ni un signo suelto ("-") ni una letra sola (la zona: "trl b") ni la instancia o el torneo
+const noEsCategoria = (w) => /^[\p{L}\p{N}]?$/u.test(pelada(w)) || NO_ES_CATEGORIA.has(pelada(w));
 export function categoriaBase(cat) {
   const c = recortar(o(cat, ""));
   if (!c) return "Sin categoría";
   const conocida = CATEGORIAS.find(([, re]) => re.test(c));
-  return conocida ? conocida[0] : capitalizar(partir(c)[0]);
+  if (conocida) return conocida[0];
+  const palabra = partir(c).find((w) => !noEsCategoria(w));
+  return palabra === undefined ? "Primera" : capitalizar(palabra);
 }
 
 export const ANIO_PLANILLA = 2025;

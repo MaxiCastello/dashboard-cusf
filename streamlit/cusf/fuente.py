@@ -17,6 +17,7 @@ import os
 import re
 import sys
 import time
+import unicodedata
 
 import pandas as pd
 import requests
@@ -126,18 +127,43 @@ def partidos_base():
 CATEGORIAS = [("Primera", re.compile(r"(?:^|[^\w]|_)primera(?:[^\w]|_|$)", re.I))]
 
 
+NO_ES_CATEGORIA = {"final", "finales", "semifinal", "semifinales", "semi", "semis", "cuartos", "octavos",
+                   "repechaje", "de", "oro", "csf", "trl"}
+
+
+def _clase(ch):
+    return unicodedata.category(ch)[0]
+
+
+def _no_es_categoria(w):
+    """Ni un signo suelto ("-"), ni una letra sola (la zona: "trl b"), ni la
+    instancia o el torneo. Mira la palabra sin los signos de puntuación de las
+    puntas y en minúsculas: "(Oro)" -> "oro"."""
+    while w and _clase(w[0]) == "P":
+        w = w[1:]
+    while w and _clase(w[-1]) == "P":
+        w = w[:-1]
+    w = w.lower()
+    return not w or (len(w) == 1 and _clase(w) in "LN") or w in NO_ES_CATEGORIA
+
+
 def categoria_base(cat):
     """'Primera oro f3' -> 'Primera'. Uni-Dat guarda la categoría como texto
     libre. Si tiene, en cualquier lugar, la palabra de una categoría conocida,
     es esa ("Semifinal trl oro primera" -> 'Primera'; nov 2026). Si no, la
-    primera palabra, como antes. (Igual en calculos.js.)"""
+    primera palabra que no sea la instancia ni el torneo ni una letra sola
+    ("Final", "oro", "trl b"), y si no queda ninguna, 'Primera': "Final oro"
+    -> 'Primera'. (Igual en calculos.js.)"""
     cat = (cat or "").strip()
     if not cat:
         return "Sin categoría"
     for nombre, patron in CATEGORIAS:
         if patron.search(cat):
             return nombre
-    return cat.split()[0].capitalize()
+    for w in cat.split():
+        if not _no_es_categoria(w):
+            return w.capitalize()
+    return "Primera"
 
 
 # ── Planilla 2025 ────────────────────────────────────────────────────────────

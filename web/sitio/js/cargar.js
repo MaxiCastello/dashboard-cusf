@@ -20,7 +20,8 @@ import { html, poner } from "./piezas.js";
 
 const $ = (id) => document.getElementById(id);
 
-const ACCIONES = [["nuevo", "Partido nuevo"], ["corregir", "Corregir o borrar"], ["complemento", "Chances, tarjetas y tiempo de juego (Uni-Dat)"]];
+const ACCIONES = [["nuevo", "Partido nuevo"], ["corregir", "Corregir o borrar"],
+  ["complemento", "Chances, tarjetas, tiempo de juego y video (Uni-Dat)"]];
 const SESION = "cusf-sesion", INTENTOS = "cusf-intentos";
 const MAX_INTENTOS = 5, VENTANA = 600;   // 5 intentos cada 10 minutos, como cargar.py
 
@@ -270,6 +271,13 @@ Vale ése; para cambiarlo, corregilo en Uni-Dat (PARTIDOS → TIEMPO DE JUEGO).<
 <div class="grupo g4">${casillaTJ("tjbp", v)}${casillaTJ("tjbm", v)}${casillaTJ("tjop", v)}${casillaTJ("tjom", v)}</div>`;
 }
 
+// El video del partido (nov 2026): un link de YouTube o de Dropbox. Lo valida carga.js.
+const bloqueVideo = (v) => html`<h4>Video del partido (opcional)</h4>
+<div class="nota">Pegá el link de YouTube o de Dropbox (el de "Copiar vínculo"). Se ve en la pestaña Video del partido,
+antes del Informe. Para sacarlo, dejá la casilla vacía.</div>
+<label class="campo"><span class="rotulo">Link del video</span><input name="vid" inputmode="url" autocomplete="off"
+autocapitalize="none" spellcheck="false" placeholder="https://www.youtube.com/watch?v=…" value="${v.vid}"></label>`;
+
 // (sin maxlength: el navegador cuenta un emoji como 2; el largo lo valida carga.js, como Python)
 const texto = (nombre, rotulo, v) => html`<label class="campo"><span class="rotulo">${rotulo}</span><input name="${nombre}"
 autocomplete="off" value="${v[nombre]}"></label>`;
@@ -301,6 +309,7 @@ ${K.FORMACIONES.map(([tit, clave]) => html`<p class="sub">${tit}</p><div class="
 <div class="grupo g6">${num("amu", "Amarillas UNI", v)}${num("rou", "Rojas UNI", v)}${num("amr", "Amarillas rival", v)}${
   num("ror", "Rojas rival", v)}${num("ch", "Chances en 22", v)}${num("co", "Concretadas", v)}</div>
 ${bloqueTiempo(K.valoresTiempo(fila?.datos?.tiempo_juego))}
+${bloqueVideo(v)}
 <h4>Tackles (opcional)</h4>
 <label class="campo"><span class="rotulo">CSV del Tackle Tracker</span><input type="file" name="tk" accept=".csv"></label>
 ${tk ? html`<div class="nota">Ya tiene ${tk} tackles cargados. Subí otro CSV sólo para reemplazarlos.</div>` : ""}
@@ -374,7 +383,8 @@ class="rot">Borrar este partido</span></summary><div class="cuerpo">
 function complemento(cont) {
   const unidat = estado.partidos.filter((p) => p.fuente === "unidat");
   const nota = html`<div class="nota">Para un partido ya publicado en Uni-Dat: sumarle las chances en 22 rival y el tiempo de juego
-si no se cargaron en Uni-Dat (si se cargaron, valen los de Uni-Dat) y agregar o sacar tarjetas si en Uni-Dat quedaron mal.</div>`;
+si no se cargaron en Uni-Dat (si se cargaron, valen los de Uni-Dat), agregar o sacar tarjetas si en Uni-Dat quedaron mal
+y ponerle el link del video.</div>`;
   if (!unidat.length) {
     poner(cont, html`${nota}<div class="nota">No hay partidos de Uni-Dat.</div>`);
     return;
@@ -401,6 +411,7 @@ Valen ésas; para cambiarlas, corregilas en Uni-Dat (PARTIDOS).</div>
 o sacar; si quedan iguales, vale lo de Uni-Dat.</div>
 <div class="grupo g4">${K.TARJETAS.map(([k, r]) => num(`ct${k}`, r, v))}</div>
 ${bloqueTiempo(v, K.tiempoUnidat(p))}
+${bloqueVideo(v)}
 <div class="botones"><button type="submit" class="boton primario">Guardar</button></div>
 </form>${cajaError(null)}`);
     const form = f.querySelector("form"), err = f.querySelector(".aviso.error"), boton = form.querySelector("[type=submit]");

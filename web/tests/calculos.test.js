@@ -75,7 +75,7 @@ test("texto(), entero(), esVerdad() y categoriaBase() como en Python", () => {
   // la palabra de una categoría conocida en cualquier lugar (nov 2026: "Semifinal trl b oro primera")
   assert.deepEqual(["Semifinal trl b oro primera", "final PRIMERA csf", "Oro-Primera", "repechaje (primera)",
     "semifinal primeras", "M19 oro", "primera1 oro", "Intermedia oro"].map(C.categoriaBase),
-  ["Primera", "Primera", "Primera", "Primera", "Semifinal", "M19", "Primera1", "Intermedia"]);
+  ["Primera", "Primera", "Primera", "Primera", "Primeras", "M19", "Primera1", "Intermedia"]);
 });
 
 test("aniosDisponibles() y categoriasDe() como en el Python", () => {

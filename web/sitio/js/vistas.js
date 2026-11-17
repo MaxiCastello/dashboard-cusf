@@ -15,6 +15,7 @@ import { aclarar, anillos, html, kpis, lupa, ojo, porPartido, reparto, tabla, tr
 import { MIN_AMARILLA, MIN_ROJA, OBJETIVOS, evaluar, minutosConUnoMenos, penales as penalesDe, temporada } from "./objetivos.js";
 import { capitalizar, conDefecto, enteroDeTexto, esVerdad, mayuscula, o, soloCifras, str } from "./python.js";
 import { ACENTO, AVISO, MAL, NEUTRO, RIVAL, UNI } from "./tema.js";
+import { videoDe } from "./video.js";
 
 // ── Lo que usan varias pestañas ─────────────────────────────────────────────
 
@@ -553,6 +554,28 @@ export function objetivos(lz, t) {
     cuerpo}</tbody></table></div>`);
   nota(lz, "Las chances en 22 se cargan a mano (Uni-Dat no las registra) y las salidas del rival que " +
     "se quedó UNI sólo están en los partidos cargados en Uni-Dat: por eso a algunos les falta el dato.");
+}
+
+// ── Video ───────────────────────────────────────────────────────────────────
+
+// (no está en el Python; nov 2026) El video del partido: el link que cargó un
+// admin (YouTube o Dropbox), para verlo acá sin salir del tablero. El botón
+// de abajo lo abre en su sitio, por si acá no arranca. Las direcciones salen
+// de videoDe() (video.js), nunca del link tal cual.
+export function video(lz, p) {
+  const v = videoDe(p.video);
+  if (!v) return;
+  const titulo = `Video de ${etiqueta(p)}`;
+  if (v.sitio === "youtube") {
+    lz.html(html`<div class="video"><iframe src="${v.embed}" title="${titulo}" loading="lazy"
+allow="fullscreen; picture-in-picture; encrypted-media" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`);
+  } else {
+    lz.html(html`<div class="video"><video src="${v.archivo}" title="${titulo}" controls playsinline preload="metadata"></video></div>`);
+    nota(lz, "El video está en Dropbox y es el partido entero: puede tardar un rato en arrancar. " +
+      "Si no arranca, abrilo en Dropbox con el botón de abajo.");
+  }
+  const sitio = v.sitio === "youtube" ? "YouTube" : "Dropbox";
+  lz.html(html`<div class="botones"><a class="boton" href="${v.ver}" target="_blank" rel="noopener noreferrer">Abrir en ${sitio} ↗</a></div>`);
 }
 
 // ── Tackles ─────────────────────────────────────────────────────────────────

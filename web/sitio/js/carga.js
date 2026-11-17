@@ -15,6 +15,7 @@
 import { ANIO_PLANILLA, etiqueta, leerCsvTackles, SITUACIONES, TJ_MANUAL_MAX, tiempoManualValido } from "./calculos.js";
 import { mmss } from "./formato.js";
 import { conDefecto, entero, esVerdad, letras, recortar, soloDigitos, str } from "./python.js";
+import { linkEscrito } from "./video.js";
 
 export const MAX_TXT = 60, MAX_N = 300;
 export const MAX_CSV = 2 * 1024 * 1024;   // como maxUploadSize = 2 (MB) de .streamlit/config.toml
@@ -92,6 +93,7 @@ export function valoresPartido(fila) {
   for (const [n, k] of TARJETAS_FORM) v[n] = n0(tj[k]);
   v.ch = n0(ef.chances);
   v.co = n0(ef.concretadas);
+  v.vid = valorVideo(d.video);
   return v;
 }
 
@@ -193,6 +195,11 @@ export function armarTiempo(v) {
   return { tj, errores, ojo };
 }
 
+// ── Video del partido (nov 2026) ─────────────────────────────────────────────
+// Un link de YouTube o de Dropbox (video.js). Va en datos.video; vacío = sin
+// video (la clave no se guarda).
+export const valorVideo = (guardado) => linkEscrito(typeof guardado === "string" ? guardado : "").link ?? "";
+
 export const AVISO_2025 =`Los partidos de ${ANIO_PLANILLA} no se ven en el tablero: esa temporada sale de la planilla.`;
 
 // Guardar un partido (nuevo si fila = null, o la corrección de esa fila).
@@ -247,6 +254,8 @@ export function armarPartido(v, fila, csv) {
   if (E.concretadas > E.chances) errores.push("Hay más chances en 22 concretadas que chances.");
   const TJ = armarTiempo(v);   // (nov 2026) sin casillas de tiempo escritas: tj = null y nada cambia
   errores.push(...TJ.errores);
+  const VID = linkEscrito(v.vid);
+  if (VID.error) errores.push(VID.error);
   let registros = esVerdad(d.tackles_registros) ? d.tackles_registros : [];
   if (csv !== null) {
     registros = registrosDelCsv(csv);
@@ -262,6 +271,7 @@ export function armarPartido(v, fila, csv) {
   const calcR = P.tries_r * 5 + P.triesp_r * 7 + P.conv_r * 2 + (P.palos_r + P.drop_r) * 3;
   const datos = { puntos: P, ...F, penales: PEN, tarjetas: T, efectividad_22: E, tackles_registros: registros };
   if (TJ.tj) datos.tiempo_juego = TJ.tj;   // sólo si se cargó: si no, la fila es la de siempre
+  if (VID.link) datos.video = VID.link;    // lo mismo
   const su = n.su, sr = n.sr;
   const nueva = { rival, categoria: cat === "" ? null : cat, fecha: v.f, score_uni: su, score_rival: sr, datos };
   const txt = `Guardado: UNI ${su}–${sr} ${rival}.`;
@@ -290,6 +300,7 @@ export function valoresComplemento(p) {
   const ef = p.efectividad_22 ?? {};
   const v = { cch: n0(ef.chances), cco: n0(ef.concretadas) };
   for (const [k] of TARJETAS) v[`ct${k}`] = n0(p.tarjetas[k]);
+  v.vid = valorVideo(p.video);
   return v;
 }
 
@@ -318,12 +329,15 @@ export function armarComplemento(v, p) {
   const tud = tiempoUnidat(p);
   const TJ = tud ? { tj: p.tiempo_juego_manual ?? null, errores: [], ojo: null } : armarTiempo(v);
   if (TJ.errores.length) return { errores: TJ.errores };
+  const VID = linkEscrito(v.vid);
+  if (VID.error) return { errores: [VID.error] };
   const T = Object.fromEntries(TARJETAS.map(([k]) => [k, n[`ct${k}`]]));
   const original = tarjetasUnidat(p);
   const datos = ud ? {} : { efectividad_22: { chances: n.cch, concretadas: n.cco } };
   // sólo se guarda la corrección: si no, vale lo que diga Uni-Dat
   if (TARJETAS.some(([k]) => T[k] !== original[k])) datos.tarjetas = T;
   if (TJ.tj) datos.tiempo_juego = TJ.tj;
+  if (VID.link) datos.video = VID.link;
   const texto = "Guardado." + ("tarjetas" in datos ? " Las tarjetas de este partido ahora son las corregidas acá." : "");
   return {
     fila: { partido_id: p.id, datos }, id: p.complemento_id ?? null,

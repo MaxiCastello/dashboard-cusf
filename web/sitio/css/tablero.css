@@ -163,6 +163,10 @@ h3 { font-size: 1.35rem; line-height: 1.2; letter-spacing: -0.005em; margin-top:
 .reparto i { width:12px; height:12px; border-radius:3px; }
 .reparto .d { font-family:'DM Mono',monospace; font-size:.76rem; color:var(--apagado); }
 .reparto b { font-family:'Bebas Neue',sans-serif; font-size:1.3rem; font-weight:400; letter-spacing:.5px; text-align:right; line-height:1; }
+/* ── Video del partido (nov 2026): a todo el ancho, 16:9; el botón de abajo lo abre en su sitio ── */
+.video { position:relative; aspect-ratio:16/9; max-width:960px; margin:4px auto 10px; background:#000; border-radius:12px; overflow:hidden; }
+.video iframe, .video video { position:absolute; inset:0; width:100%; height:100%; border:0; }
+a.boton { display:inline-flex; align-items:center; text-decoration:none; }
 /* ── Objetivos: una card por objetivo; la marca y el color dicen lo mismo ── */
 .objs { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px; margin:4px 0 12px; }
 .objc { background:var(--sup); border:1px solid var(--borde); border-radius:12px; padding:12px 14px;

@@ -41,6 +41,10 @@ const conTiempoDeJuego = (rotulos) => [...rotulos.slice(0, TJ), "Tiempo de juego
 // el número de pestaña sin la de Tiempo de juego (para las listas de secciones)
 const sinTJ = (conTJ, i) => (conTJ && i > TJ ? i - 1 : i);
 
+// "Video" va anteúltima (antes del Informe), sólo en un partido con el link cargado.
+const VIDEO = "Video";
+const conVideo = (rotulos, hay) => (hay ? [...rotulos.slice(0, -1), VIDEO, rotulos.at(-1)] : rotulos);
+
 // Algo falló: sólo el mensaje (como el Python, que deja de mostrar el tablero).
 export function fallo(err) {
   for (const id of ["aviso", "filtros", "caja-ver", "vista"]) $(id).hidden = true;
@@ -161,11 +165,13 @@ export function tablero({ partidos, errorBase = null }) {
     const tp = una(p, t);
     // (las pestañas van debajo del marcador; apagarPestanas(cont) también las apaga)
     const conTJ = !!p.tiempo_juego;
-    pestanas(lz.poner(html`<div class="pestanas-partido"></div>`), conTJ ? conTiempoDeJuego(PESTANAS_PARTIDO) : PESTANAS_PARTIDO, seguro((i, panel) => {
+    // "Video" (nov 2026), después de Objetivos y antes del Informe, sólo si el partido tiene el link cargado
+    const rotulos = conVideo(conTJ ? conTiempoDeJuego(PESTANAS_PARTIDO) : PESTANAS_PARTIDO, !!p.video);
+    pestanas(lz.poner(html`<div class="pestanas-partido"></div>`), rotulos, seguro((i, panel) => {
       if (conTJ && i === TJ) return V.tiempoDeJuego(new EnPagina(panel), p, t);
-      const f = V.SECCIONES_PARTIDO[sinTJ(conTJ, i)]?.[2];
-      if (f) f(new EnPagina(panel), p, t, tp);
-      else pestanaInforme(panel, t, estado.cat, p);
+      if (i === rotulos.length - 1) return pestanaInforme(panel, t, estado.cat, p);
+      if (rotulos[i] === VIDEO) return V.video(new EnPagina(panel), p);
+      return V.SECCIONES_PARTIDO[sinTJ(conTJ, i)][2](new EnPagina(panel), p, t, tp);
     }), pestana);
   }
 
