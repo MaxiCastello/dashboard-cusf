@@ -487,7 +487,9 @@ def sumar(partidos):
 # guardarlos desde Python les borra los valores). 2026: en la plantilla del
 # Tackle Tracker.
 NOMBRES_CORREGIDOS = {"santiago hothan": "Santiago Hotham", "julian felitas": "Julian Fleitas",
-                      "alvaro otteo": "Alvaro Oteo", "nahuel gonzales": "Nahuel Gonzalez"}
+                      "alvaro otteo": "Alvaro Oteo", "nahuel gonzales": "Nahuel Gonzalez",
+                      "gonza meza": "Gonzalo Meza", "jorge onoratto": "Jorge Onorato",
+                      "tomas galeano": "Tomas Galiano"}
 
 
 def tackles_temporada(partidos):

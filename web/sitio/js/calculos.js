@@ -839,7 +839,8 @@ export function sumar(partidos) {
 // 2025: en las planillas de la Fecha 14 y 15. 2026: en la plantilla del
 // Tackle Tracker.
 const NOMBRES_CORREGIDOS = new Map([["santiago hothan", "Santiago Hotham"], ["julian felitas", "Julian Fleitas"],
-  ["alvaro otteo", "Alvaro Oteo"], ["nahuel gonzales", "Nahuel Gonzalez"]]);
+  ["alvaro otteo", "Alvaro Oteo"], ["nahuel gonzales", "Nahuel Gonzalez"], ["gonza meza", "Gonzalo Meza"],
+  ["jorge onoratto", "Jorge Onorato"], ["tomas galeano", "Tomas Galiano"]]);
 
 // El jugador se reconoce por el nombre sin tildes ni mayúsculas.
 // (U+1171E dejó de ser una marca en Unicode 16; para Python 3.13 todavía lo es)
