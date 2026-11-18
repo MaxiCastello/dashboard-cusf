@@ -840,7 +840,7 @@ export function sumar(partidos) {
 // Tackle Tracker.
 const NOMBRES_CORREGIDOS = new Map([["santiago hothan", "Santiago Hotham"], ["julian felitas", "Julian Fleitas"],
   ["alvaro otteo", "Alvaro Oteo"], ["nahuel gonzales", "Nahuel Gonzalez"], ["gonza meza", "Gonzalo Meza"],
-  ["jorge onoratto", "Jorge Onorato"], ["tomas galeano", "Tomas Galiano"]]);
+  ["jorge onoratto", "Jorge Onorato"], ["tomas galeano", "Tomas Galiano"], ["juan ignacio galeano", "Juan Ignacio Galiano"]]);
 
 // El jugador se reconoce por el nombre sin tildes ni mayúsculas.
 // (U+1171E dejó de ser una marca en Unicode 16; para Python 3.13 todavía lo es)

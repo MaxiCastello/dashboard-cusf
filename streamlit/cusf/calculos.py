@@ -489,7 +489,7 @@ def sumar(partidos):
 NOMBRES_CORREGIDOS = {"santiago hothan": "Santiago Hotham", "julian felitas": "Julian Fleitas",
                       "alvaro otteo": "Alvaro Oteo", "nahuel gonzales": "Nahuel Gonzalez",
                       "gonza meza": "Gonzalo Meza", "jorge onoratto": "Jorge Onorato",
-                      "tomas galeano": "Tomas Galiano"}
+                      "tomas galeano": "Tomas Galiano", "juan ignacio galeano": "Juan Ignacio Galiano"}
 
 
 def tackles_temporada(partidos):
